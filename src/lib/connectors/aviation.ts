@@ -7,24 +7,68 @@ import { fetchWithTimeout, registerConnector } from "./framework";
 // Each region has a bbox (for OpenSky) and a set of probe points (for the
 // adsb.lol fallback, which queries a 250 nm radius per point). "global"
 // has no bbox — it is served purely by probes at the world's traffic hubs.
+// World probe grid — adsb.lol queries 250 nm (~463 km) per point. Dense hubs
+// plus a coarse lat/lon grid so Global view covers India, China, Africa, etc.
+function gridProbes(stepDeg: number): [number, number][] {
+  const pts: [number, number][] = [];
+  for (let lat = -55; lat <= 72; lat += stepDeg) {
+    for (let lon = -175; lon <= 175; lon += stepDeg) {
+      if (Math.abs(lat) < 8 && Math.abs(lon) > 150) continue; // sparse empty Pacific
+      pts.push([lat, lon]);
+    }
+  }
+  return pts;
+}
+
+const HUB_PROBES: [number, number][] = [
+  // Europe
+  [50, 9], [51.5, 0], [41, -4], [59, 18], [38, 23], [48, 2], [55, 37], [45.5, 9.2],
+  // North America
+  [40.7, -74], [33.7, -84.4], [41.9, -87.6], [32.9, -97], [34, -118], [47.4, -122.3],
+  [39.8, -104.9], [25.8, -80.3], [45.5, -73.6], [19.4, -99.1], [49.2, -123.1],
+  // Latin America
+  [-23.4, -46.5], [4.7, -74], [-34.6, -58.4], [-12, -77], [-33.4, -70.7],
+  // India & South Asia
+  [28.6, 77.2], [19.1, 72.9], [13, 77.6], [22.6, 88.4], [17.2, 78.4], [24.9, 67.2],
+  [26.8, 80.9], [23, 72.6], [30.7, 76.8], [15.4, 73.8], [27.2, 78], [21.2, 81.6],
+  [25.6, 85.1], [34.1, 74.8], [27.7, 85.3], [8.5, 76.9],
+  // China & East Asia
+  [31.2, 121.5], [22.3, 113.9], [35.5, 139.8], [37.5, 126.8], [39.5, 116.4], [25, 121.2],
+  [30.6, 114.3], [34.3, 108.9], [36.7, 117], [43.9, 125.3], [45.8, 126.5], [38, 114.5],
+  [23.1, 113.3], [29.6, 106.5], [26.6, 106.7], [36, 103.8], [41.8, 123.4],
+  // Southeast Asia & Oceania
+  [1.35, 103.99], [13.7, 100.75], [-6.1, 106.7], [-33.9, 151.2], [-37.7, 144.8],
+  [14.6, 121], [-1.3, 116.9], [3.1, 101.7], [21, 105.8], [-27.5, 153],
+  // Middle East
+  [25.2, 55.3], [26.3, 50.6], [30, 31.4], [41, 29], [24.4, 54.6], [21.7, 39.2],
+  [33.3, 44.4], [32, 34.8], [24.7, 46.7],
+  // Africa
+  [-26.1, 28.2], [6.6, 3.3], [-33.9, 18.4], [-1.3, 36.8], [30, 31.2], [9.1, 7.4],
+  [5.6, -0.2], [-4.3, 15.3], [14.7, -17.4], [33.6, -7.6], [-15.4, 28.3], [0.3, 32.6],
+  [-6.2, 35.7], [11.5, 43.1], [-25.7, 28.2], [36.8, 10.2],
+  // Russia / Central Asia
+  [55.8, 37.6], [59.9, 30.3], [43.2, 76.9], [51.2, 71.4], [62, 129.7],
+];
+
+function dedupeProbes(probes: [number, number][]): [number, number][] {
+  const seen = new Set<string>();
+  return probes.filter(([lat, lon]) => {
+    const k = `${lat.toFixed(1)},${lon.toFixed(1)}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
+const GLOBAL_PROBES = dedupeProbes([...HUB_PROBES, ...gridProbes(22)]);
+
 export const REGIONS: Record<
   string,
   { label: string; bbox?: [number, number, number, number]; probes: [number, number][] }
 > = {
   global: {
     label: "Global",
-    probes: [
-      [50, 9], [51.5, 0], [41, -4], [59, 18], [38, 23],           // Europe
-      [40.7, -74], [33.7, -84.4], [41.9, -87.6], [32.9, -97],     // US East/Central
-      [34, -118], [47.4, -122.3], [39.8, -104.9],                 // US West
-      [45.5, -73.6], [19.4, -99.1], [-23.4, -46.5], [4.7, -74],   // Canada/LatAm
-      [28.6, 77.2], [19.1, 72.9], [13, 77.6],                     // India
-      [25.2, 55.3], [26.3, 50.6], [30, 31.4], [41, 29],           // Middle East
-      [31.2, 121.5], [22.3, 113.9], [35.5, 139.8], [37.5, 126.8], // East Asia
-      [1.35, 103.99], [13.7, 100.75], [-6.1, 106.7],              // SE Asia
-      [-33.9, 151.2], [-37.7, 144.8],                             // Australia
-      [-26.1, 28.2], [6.6, 3.3],                                  // Africa
-    ],
+    probes: GLOBAL_PROBES,
   },
   europe: {
     label: "Europe",
@@ -50,6 +94,16 @@ export const REGIONS: Record<
     label: "Middle East",
     bbox: [12, 32, 42, 65],
     probes: [[25.2, 55.3], [26.3, 50.6], [30, 31.4], [41, 29], [24.4, 54.6], [21.7, 39.2]],
+  },
+  africa: {
+    label: "Africa",
+    bbox: [-35, -18, 38, 52],
+    probes: [[-26.1, 28.2], [6.6, 3.3], [-33.9, 18.4], [-1.3, 36.8], [30, 31.2], [9.1, 7.4], [5.6, -0.2], [-4.3, 15.3], [14.7, -17.4], [33.6, -7.6]],
+  },
+  china: {
+    label: "China",
+    bbox: [18, 73, 54, 135],
+    probes: [[31.2, 121.5], [39.5, 116.4], [30.6, 114.3], [34.3, 108.9], [36.7, 117], [23.1, 113.3], [29.6, 106.5], [26.6, 106.7], [36, 103.8], [41.8, 123.4], [22.3, 113.9]],
   },
 };
 
@@ -117,27 +171,34 @@ interface AdsbAircraft {
  */
 async function fetchAdsbLol(region: string): Promise<Item[]> {
   const r = REGIONS[region] ?? REGIONS.europe;
-  const results = await Promise.allSettled(
-    r.probes.map(async ([lat, lon]) => {
-      const res = await fetchWithTimeout(
-        `https://api.adsb.lol/v2/lat/${lat.toFixed(2)}/lon/${lon.toFixed(2)}/dist/250`,
-        { timeoutMs: 10000 },
-      );
-      if (!res.ok) throw new Error(`adsb.lol HTTP ${res.status}`);
-      const data = await res.json();
-      return (data.ac ?? []) as AdsbAircraft[];
-    }),
-  );
   const seen = new Map<string, AdsbAircraft>();
-  for (const p of results) {
-    if (p.status !== "fulfilled") continue;
-    for (const ac of p.value) {
-      if (ac.lat == null || ac.lon == null || ac.alt_baro === "ground") continue;
-      seen.set(ac.hex, ac);
+  const batchSize = region === "global" ? 14 : 10;
+
+  for (let i = 0; i < r.probes.length; i += batchSize) {
+    const batch = r.probes.slice(i, i + batchSize);
+    const results = await Promise.allSettled(
+      batch.map(async ([lat, lon]) => {
+        const res = await fetchWithTimeout(
+          `https://api.adsb.lol/v2/lat/${lat.toFixed(2)}/lon/${lon.toFixed(2)}/dist/250`,
+          { timeoutMs: 12000 },
+        );
+        if (!res.ok) throw new Error(`adsb.lol HTTP ${res.status}`);
+        const data = await res.json();
+        return (data.ac ?? []) as AdsbAircraft[];
+      }),
+    );
+    for (const p of results) {
+      if (p.status !== "fulfilled") continue;
+      for (const ac of p.value) {
+        if (ac.lat == null || ac.lon == null || ac.alt_baro === "ground") continue;
+        seen.set(ac.hex, ac);
+      }
     }
   }
+
   if (seen.size === 0) throw new Error("adsb.lol returned no aircraft");
-  return [...seen.values()].slice(0, 4000).map((ac): Item => {
+  const limit = region === "global" ? 8000 : 4000;
+  return [...seen.values()].slice(0, limit).map((ac): Item => {
     const callsign = (ac.flight ?? "").trim() || ac.r || ac.hex.toUpperCase();
     const airlinePrefix = callsign.match(/^[A-Z]{3}/)?.[0];
     return {

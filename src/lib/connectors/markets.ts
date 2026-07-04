@@ -17,7 +17,7 @@ registerConnector(
   },
   async () => {
     const res = await fetchWithTimeout(
-      "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=30&page=1&sparkline=false&price_change_percentage=24h,7d",
+      "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=true&price_change_percentage=24h,7d,30d",
       { timeoutMs: 12000 },
     );
     if (!res.ok) throw new Error(`CoinGecko HTTP ${res.status} (free tier ~10 req/min)`);
@@ -25,7 +25,10 @@ registerConnector(
       id: string; symbol: string; name: string; current_price: number;
       market_cap: number; price_change_percentage_24h: number | null;
       price_change_percentage_7d_in_currency: number | null;
-      total_volume: number;
+      price_change_percentage_30d_in_currency?: number | null;
+      total_volume: number; market_cap_rank: number;
+      sparkline_in_7d?: { price: number[] };
+      image?: string;
     }
     const coins: Coin[] = await res.json();
     return coins.map((c): Item => ({
@@ -46,10 +49,15 @@ registerConnector(
         price: c.current_price,
         change24h: c.price_change_percentage_24h,
         change7d: c.price_change_percentage_7d_in_currency,
+        change30d: c.price_change_percentage_30d_in_currency,
         volume: c.total_volume,
         marketCap: c.market_cap,
+        rank: c.market_cap_rank,
         assetClass: "crypto",
         symbol: c.symbol.toUpperCase(),
+        coinId: c.id,
+        sparkline: c.sparkline_in_7d?.price,
+        image: c.image,
       },
     }));
   },
@@ -83,7 +91,7 @@ interface YfChart {
         currency: string;
       };
       timestamp?: number[];
-      indicators: { quote: { close: (number | null)[] }[] };
+      indicators: { quote: { close: (number | null)[]; volume?: (number | null)[] }[] };
     }[];
     error?: { description?: string } | null;
   };
@@ -142,12 +150,15 @@ registerConnector(
 
 export const MARKETS_CONNECTOR_IDS = ["coingecko_markets", "yahoo_quotes"];
 
-/** Daily close history (1 year) from Yahoo Finance for in-app charting. */
+/** Daily close history from Yahoo Finance for in-app charting. */
 export async function fetchStockHistory(
   symbol: string,
-): Promise<{ date: string; close: number }[]> {
+  days = 365,
+): Promise<{ date: string; close: number; volume?: number }[]> {
+  const range = days <= 7 ? "5d" : days <= 30 ? "1mo" : days <= 90 ? "3mo" : days <= 365 ? "1y" : "5y";
+  const interval = days <= 7 ? "1h" : "1d";
   const res = await fetchWithTimeout(
-    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1y&interval=1d`,
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=${interval}`,
     { timeoutMs: 12000, headers: YF_HEADERS },
   );
   if (!res.ok) return [];
@@ -155,26 +166,36 @@ export async function fetchStockHistory(
   const r = data.chart.result?.[0];
   if (!r?.timestamp) return [];
   const closes = r.indicators.quote[0]?.close ?? [];
+  const volumes = r.indicators.quote[0]?.volume ?? [];
   return r.timestamp
     .map((t, i) => ({
-      date: new Date(t * 1000).toISOString().slice(0, 10),
+      date: new Date(t * 1000).toISOString(),
       close: closes[i] as number,
+      volume: volumes[i] as number | undefined,
     }))
     .filter((p) => typeof p.close === "number" && !Number.isNaN(p.close));
 }
 
-/** 30-day price history from CoinGecko for in-app charting. */
+/** Price history from CoinGecko — days: 1|7|30|90|365|max */
 export async function fetchCryptoHistory(
   id: string,
-): Promise<{ date: string; close: number }[]> {
-  const res = await fetchWithTimeout(
-    `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(id)}/market_chart?vs_currency=usd&days=30&interval=daily`,
-    { timeoutMs: 12000 },
-  );
+  days = 30,
+): Promise<{ date: string; close: number; volume?: number }[]> {
+  const d = days >= 365 ? "max" : String(days);
+  const interval = days <= 1 ? "hourly" : "daily";
+  const url =
+    days === 1
+      ? `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(id)}/market_chart?vs_currency=usd&days=${d}`
+      : `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(id)}/market_chart?vs_currency=usd&days=${d}&interval=${interval}`;
+  const res = await fetchWithTimeout(url, { timeoutMs: 15000 });
   if (!res.ok) return [];
   const data = await res.json();
-  return (data.prices as [number, number][]).map(([t, p]) => ({
-    date: new Date(t).toISOString().slice(0, 10),
+  const prices: [number, number][] = data.prices ?? [];
+  const volumes: [number, number][] = data.total_volumes ?? [];
+  const volMap = new Map(volumes.map(([t, v]) => [t, v]));
+  return prices.map(([t, p]) => ({
+    date: new Date(t).toISOString(),
     close: p,
+    volume: volMap.get(t),
   }));
 }

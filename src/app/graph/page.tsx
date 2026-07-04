@@ -5,7 +5,7 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { LoaderCircle, Network } from "lucide-react";
+import { Bot, LoaderCircle, Network } from "lucide-react";
 import type { GraphEdge, GraphEntity, Item } from "@/lib/types";
 import { ForceGraph } from "@/components/ForceGraph";
 import { ItemCard } from "@/components/ModuleView";
@@ -37,6 +37,23 @@ function GraphInner() {
   const [type, setType] = useState("all");
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [reasonQ, setReasonQ] = useState("");
+  const [reasoning, setReasoning] = useState<{ answer?: string; error?: string; busy?: boolean }>({});
+
+  const runReason = async () => {
+    setReasoning({ busy: true });
+    try {
+      const res = await fetch("/api/graph/reason", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entityId: entityParam ?? undefined, question: reasonQ || undefined }),
+      });
+      const d = await res.json();
+      setReasoning(d.error ? { error: d.error } : { answer: d.answer });
+    } catch {
+      setReasoning({ error: "reasoning failed" });
+    }
+  };
 
   const loadSnapshot = useCallback(() => {
     setLoading(true);
@@ -68,6 +85,7 @@ function GraphInner() {
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <h1 className="mr-2 flex items-center gap-2 text-lg font-semibold text-ink">
           <Network className="h-5 w-5 text-fuchsia-400" /> Knowledge Graph
+          <span className="rounded-full border border-fuchsia-900/60 bg-fuchsia-950/40 px-2 py-0.5 text-[10px] font-normal text-fuchsia-300">Neuro-Symbolic AI</span>
         </h1>
         {hood ? (
           <button onClick={() => router.push("/graph")} className="rounded-md border border-line px-2.5 py-1 text-xs text-ink-dim hover:text-ink">
@@ -131,7 +149,28 @@ function GraphInner() {
 
       {!loading && !hood && snap && (
         <>
-          <ForceGraph entities={snap.entities} edges={snap.edges} onSelect={openEntity} height={560} />
+          <div className="mb-4 rounded-lg border border-line bg-panel p-3">
+            <div className="mb-2 flex items-center gap-2 text-xs font-medium text-ink">
+              <Bot className="h-4 w-4 text-fuchsia-400" /> Symbolic reasoning + neural synthesis
+            </div>
+            <p className="mb-2 text-[11px] text-ink-dim">
+              Combines graph structure (entities, edges, co-occurrence) with retrieval-grounded Gemini analysis. Requires GEMINI_API_KEY.
+            </p>
+            <div className="flex gap-2">
+              <input value={reasonQ} onChange={(e) => setReasonQ(e.target.value)}
+                placeholder="Ask about patterns, connections, or risks across the graph…"
+                className="min-w-0 flex-1 rounded-md border border-line bg-panel-2 px-2.5 py-1.5 text-xs text-ink placeholder:text-ink-dim focus:border-accent focus:outline-none" />
+              <button onClick={runReason} disabled={reasoning.busy}
+                className="rounded-md border border-fuchsia-800 bg-fuchsia-950/50 px-3 py-1.5 text-xs text-fuchsia-200 hover:bg-fuchsia-900/40 disabled:opacity-50">
+                {reasoning.busy ? "Thinking…" : "Reason"}
+              </button>
+            </div>
+            {reasoning.answer && (
+              <div className="prose-earthos mt-3 rounded-md border border-line bg-panel-2 p-3 text-sm text-soft">{reasoning.answer}</div>
+            )}
+            {reasoning.error && <p className="mt-2 text-xs text-amber-400">{reasoning.error}</p>}
+          </div>
+          <ForceGraph entities={snap.entities} edges={snap.edges} onSelect={openEntity} height={520} />
           <p className="mt-2 text-[11px] text-ink-dim">
             Node size = connection degree · colors = entity type · click any node to explore its neighborhood.
             Entities are extracted automatically from every module’s live feed.

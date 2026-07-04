@@ -10,11 +10,13 @@ import { ReaderPane } from "@/components/ReaderPane";
 import { ModuleView, timeAgo } from "@/components/ModuleView";
 
 const REGION_OPTIONS = [
-  { id: "global", label: "🌍 Global", center: [20, 25] as [number, number], zoom: 1.7 },
+  { id: "global", label: "🌍 Global", center: [20, 20] as [number, number], zoom: 1.5 },
   { id: "europe", label: "Europe", center: [10, 50] as [number, number], zoom: 3.8 },
   { id: "usa", label: "United States", center: [-98, 38] as [number, number], zoom: 3.8 },
   { id: "india", label: "India / South Asia", center: [79, 22] as [number, number], zoom: 3.8 },
+  { id: "china", label: "China", center: [105, 35] as [number, number], zoom: 3.5 },
   { id: "easia", label: "East Asia", center: [115, 33] as [number, number], zoom: 3.8 },
+  { id: "africa", label: "Africa", center: [20, 5] as [number, number], zoom: 3.2 },
   { id: "mideast", label: "Middle East", center: [47, 27] as [number, number], zoom: 3.8 },
 ];
 
@@ -70,6 +72,8 @@ export default function AviationPage() {
             layers={layers}
             center={region.center}
             zoom={region.zoom}
+            defaultGlobe
+            maxZoom={19}
             className="h-[52vh] w-full"
             onSelect={(id) => setSelected(flights.find((f) => f.id === id) ?? null)}
           />

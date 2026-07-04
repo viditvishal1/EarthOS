@@ -173,17 +173,20 @@ function planeImage(color: string): ImageData {
 }
 
 export function MapView({
-  layers, lines = [], onSelect, center = [10, 25], zoom = 1.6, className,
-  defaultBasemap = "dark", defaultGlobe = false,
+  layers, lines = [], onSelect, onLocationPick, pin, center = [10, 25], zoom = 1.6, className,
+  defaultBasemap = "dark", defaultGlobe = false, maxZoom = 19,
 }: {
   layers: MapLayer[];
   lines?: MapLine[];
   onSelect?: (id: string) => void;
+  onLocationPick?: (lat: number, lon: number) => void;
+  pin?: { lat: number; lon: number; label?: string } | null;
   center?: [number, number];
   zoom?: number;
   className?: string;
   defaultBasemap?: BasemapId;
   defaultGlobe?: boolean;
+  maxZoom?: number;
 }) {
   const el = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
@@ -194,6 +197,10 @@ export function MapView({
   linesRef.current = lines;
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
+  const onLocationPickRef = useRef(onLocationPick);
+  onLocationPickRef.current = onLocationPick;
+  const pinRef = useRef(pin);
+  pinRef.current = pin;
 
   const [basemap, setBasemap] = useState<BasemapId>(defaultBasemap);
   const [globe, setGlobe] = useState(defaultGlobe);
@@ -289,11 +296,45 @@ export function MapView({
     for (const known of [...knownLayers.current]) {
       const stillWanted = known.startsWith("line-")
         ? linesRef.current.some((l) => `line-${l.id}` === known)
-        : layersRef.current.some((l) => l.id === known);
+        : known === "pin"
+          ? Boolean(pinRef.current)
+          : layersRef.current.some((l) => l.id === known);
       if (!stillWanted) {
-        if (map.getLayer(`lyr-${known}`)) map.removeLayer(`lyr-${known}`);
-        if (map.getSource(`src-${known}`)) map.removeSource(`src-${known}`);
+        const lid = known === "pin" ? "lyr-pin" : `lyr-${known}`;
+        const sid = known === "pin" ? "src-pin" : `src-${known}`;
+        if (map.getLayer(lid)) map.removeLayer(lid);
+        if (map.getSource(sid)) map.removeSource(sid);
         knownLayers.current.delete(known);
+      }
+    }
+
+    // User-placed pin
+    if (pinRef.current) {
+      const { lat, lon, label } = pinRef.current;
+      const geo: GeoJSON.FeatureCollection = {
+        type: "FeatureCollection",
+        features: [{
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [lon, lat] },
+          properties: { title: label ?? "Selected location" },
+        }],
+      };
+      const existing = map.getSource("src-pin") as maplibregl.GeoJSONSource | undefined;
+      if (existing) existing.setData(geo);
+      else {
+        map.addSource("src-pin", { type: "geojson", data: geo });
+        map.addLayer({
+          id: "lyr-pin",
+          type: "circle",
+          source: "src-pin",
+          paint: {
+            "circle-radius": 8,
+            "circle-color": "#6366f1",
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "#fff",
+          },
+        });
+        knownLayers.current.add("pin");
       }
     }
   }, []);
@@ -305,11 +346,15 @@ export function MapView({
       style: BASEMAPS[defaultBasemap].build(),
       center,
       zoom,
+      maxZoom,
       attributionControl: { compact: true },
       maxPitch: 75,
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: true }), "top-right");
     map.on("load", () => applyOverlays(map));
+    map.on("click", (e) => {
+      if (onLocationPickRef.current) onLocationPickRef.current(e.lngLat.lat, e.lngLat.lng);
+    });
     mapRef.current = map;
     return () => { map.remove(); mapRef.current = null; knownLayers.current.clear(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -321,7 +366,7 @@ export function MapView({
     if (!map) return;
     if (map.isStyleLoaded()) applyOverlays(map);
     else map.once("load", () => applyOverlays(map));
-  }, [layers, lines, applyOverlays]);
+  }, [layers, lines, pin, applyOverlays]);
 
   // Fly to a new center/zoom when the parent changes region.
   useEffect(() => {
