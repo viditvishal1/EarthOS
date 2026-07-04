@@ -1,10 +1,11 @@
-// In-app reader extraction — fetches an article URL server-side and returns
-// readable text (readability-style heuristic: prefer <article>, else the
-// densest cluster of <p> tags). Content is returned transiently for display,
-// not persisted, and the reader always keeps a "view original" link.
+// In-app reader extraction — fetches article URLs, extracts readable HTML text
+// or surfaces PDFs for in-app viewing. Results are cached (in-process + optional
+// Supabase) so repeat reads don't re-fetch.
 
 import { NextRequest, NextResponse } from "next/server";
 import { fetchWithTimeout } from "@/lib/connectors/framework";
+import { readArticleCache, writeArticleCache } from "@/lib/article-cache";
+import { publish } from "@/lib/events/bus";
 
 export const dynamic = "force-dynamic";
 
@@ -43,9 +44,19 @@ function extract(html: string): { title?: string; paragraphs: string[] } {
   return { title: title ? decodeEntities(title) : undefined, paragraphs };
 }
 
+function isPdfContentType(ct: string | null): boolean {
+  return Boolean(ct?.includes("application/pdf"));
+}
+
+function isPdfUrl(url: string): boolean {
+  return /\.pdf(\?|#|$)/i.test(url);
+}
+
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get("url");
+  const skipCache = req.nextUrl.searchParams.get("refresh") === "1";
   if (!url) return NextResponse.json({ error: "url required" }, { status: 400 });
+
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -55,13 +66,46 @@ export async function GET(req: NextRequest) {
   if (!/^https?:$/.test(parsed.protocol) || BLOCKED_HOSTS.test(parsed.hostname)) {
     return NextResponse.json({ error: "url not allowed" }, { status: 400 });
   }
+
+  if (!skipCache) {
+    const cached = await readArticleCache(url);
+    if (cached) {
+      return NextResponse.json({
+        title: cached.title,
+        paragraphs: cached.paragraphs,
+        pdfUrl: cached.pdfUrl,
+        contentType: cached.contentType,
+        fetchedAt: cached.fetchedAt,
+        cached: true,
+      });
+    }
+  }
+
+  if (isPdfUrl(url)) {
+    const fetchedAt = new Date().toISOString();
+    const entry = { url, pdfUrl: url, contentType: "pdf" as const, fetchedAt };
+    await writeArticleCache(entry);
+    await publish({ type: "article.cached", meta: { url, contentType: "pdf" } });
+    return NextResponse.json({ ...entry, cached: false });
+  }
+
   try {
     const res = await fetchWithTimeout(url, {
       timeoutMs: 12000,
-      headers: { Accept: "text/html" },
+      headers: { Accept: "text/html,application/pdf" },
       redirect: "follow",
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const ct = res.headers.get("content-type");
+    if (isPdfContentType(ct)) {
+      const fetchedAt = new Date().toISOString();
+      const entry = { url, pdfUrl: url, contentType: "pdf" as const, fetchedAt };
+      await writeArticleCache(entry);
+      await publish({ type: "article.cached", meta: { url, contentType: "pdf" } });
+      return NextResponse.json({ ...entry, cached: false });
+    }
+
     const html = (await res.text()).slice(0, 1_500_000);
     const { title, paragraphs } = extract(html);
     if (paragraphs.length === 0) {
@@ -70,7 +114,12 @@ export async function GET(req: NextRequest) {
         { status: 422 },
       );
     }
-    return NextResponse.json({ title, paragraphs, fetchedAt: new Date().toISOString() });
+
+    const fetchedAt = new Date().toISOString();
+    await writeArticleCache({ url, title, paragraphs, contentType: "html", fetchedAt });
+    await publish({ type: "article.cached", meta: { url, contentType: "html" } });
+
+    return NextResponse.json({ title, paragraphs, contentType: "html", fetchedAt, cached: false });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "fetch failed" },

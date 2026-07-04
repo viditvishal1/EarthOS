@@ -1,11 +1,15 @@
 "use client";
 
-// Space — ISS live position, geomagnetic K-index, upcoming launches,
-// recently launched satellites, space-weather bulletins.
+// Space — live ISS/Kp stats, intelligence feed, orbit globe (SGP4 TLEs),
+// and a scrubbable solar-system view.
 
 import { useEffect, useState } from "react";
-import { Satellite } from "lucide-react";
+import { Globe2, Orbit, Satellite } from "lucide-react";
 import { ModuleView } from "@/components/ModuleView";
+import { OrbitGlobe } from "@/components/OrbitGlobe";
+import { SolarSystem } from "@/components/SolarSystem";
+
+type Tab = "intel" | "orbit" | "solar";
 
 function LiveStats() {
   const [iss, setIss] = useState<{ lat: number; lon: number; altitudeKm?: number; velocityKmh?: number } | null>(null);
@@ -53,14 +57,64 @@ function LiveStats() {
   );
 }
 
-export default function SpacePage() {
+function TabBar({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
+  const btn = (id: Tab, label: string, icon: React.ReactNode) => (
+    <button
+      key={id}
+      onClick={() => onTab(id)}
+      className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors ${
+        tab === id ? "border-violet-700 bg-violet-950/50 text-violet-300" : "border-line text-ink-dim hover:text-ink"
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
   return (
-    <ModuleView
-      module="space"
-      title="Space"
-      subtitle="Launches (Launch Library 2), space weather (NOAA SWPC), new satellites (CelesTrak)"
-      extraHeader={<LiveStats />}
-      refreshSeconds={600}
-    />
+    <div className="mb-4 flex flex-wrap items-center gap-2">
+      {btn("intel", "Intelligence feed", <Satellite className="h-3.5 w-3.5" />)}
+      {btn("orbit", "Orbit tracker", <Globe2 className="h-3.5 w-3.5" />)}
+      {btn("solar", "Solar system", <Orbit className="h-3.5 w-3.5" />)}
+    </div>
+  );
+}
+
+export default function SpacePage() {
+  const [tab, setTab] = useState<Tab>("intel");
+
+  if (tab === "orbit") {
+    return (
+      <div>
+        <h1 className="mb-1 text-lg font-semibold text-ink">Space</h1>
+        <p className="mb-3 text-xs text-ink-dim">Live satellite positions from CelesTrak TLEs, propagated with SGP4</p>
+        <TabBar tab={tab} onTab={setTab} />
+        <LiveStats />
+        <OrbitGlobe />
+      </div>
+    );
+  }
+
+  if (tab === "solar") {
+    return (
+      <div>
+        <h1 className="mb-1 text-lg font-semibold text-ink">Space</h1>
+        <p className="mb-3 text-xs text-ink-dim">Heliocentric planetary positions from JPL approximate elements</p>
+        <TabBar tab={tab} onTab={setTab} />
+        <SolarSystem />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <TabBar tab={tab} onTab={setTab} />
+      <ModuleView
+        module="space"
+        title="Space"
+        subtitle="Launches (Launch Library 2), space weather (NOAA SWPC), new satellites (CelesTrak)"
+        extraHeader={<LiveStats />}
+        refreshSeconds={600}
+      />
+    </div>
   );
 }

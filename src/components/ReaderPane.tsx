@@ -12,6 +12,7 @@ import { EntityChip } from "@/components/EntityChip";
 import { Markdown } from "@/components/Markdown";
 import { isBookmarked, toggleBookmark } from "@/lib/saved";
 import { PriceChart } from "@/components/PriceChart";
+import { ArticleContent } from "@/components/PdfViewer";
 
 function SeverityBadge({ item }: { item: Item }) {
   if (!item.severityLabel) return null;
@@ -29,37 +30,35 @@ function SeverityBadge({ item }: { item: Item }) {
 }
 
 function ArticleText({ url }: { url: string }) {
-  const [state, setState] = useState<{ loading: boolean; paragraphs?: string[]; error?: string }>({ loading: true });
+  const [state, setState] = useState<{
+    loading: boolean;
+    paragraphs?: string[];
+    pdfUrl?: string;
+    contentType?: "html" | "pdf";
+    cached?: boolean;
+    error?: string;
+    fetchedAt?: string;
+  }>({ loading: true });
+
   useEffect(() => {
     let alive = true;
     setState({ loading: true });
     fetch(`/api/article?url=${encodeURIComponent(url)}`)
       .then((r) => r.json())
-      .then((d) => alive && setState({ loading: false, paragraphs: d.paragraphs, error: d.error }))
+      .then((d) => alive && setState({
+        loading: false,
+        paragraphs: d.paragraphs,
+        pdfUrl: d.pdfUrl,
+        contentType: d.contentType,
+        cached: d.cached,
+        error: d.error,
+        fetchedAt: d.fetchedAt,
+      }))
       .catch(() => alive && setState({ loading: false, error: "extraction failed" }));
     return () => { alive = false; };
   }, [url]);
 
-  if (state.loading) {
-    return (
-      <div className="flex items-center gap-2 py-6 text-xs text-ink-dim">
-        <LoaderCircle className="h-4 w-4 animate-spin" /> Extracting article text…
-      </div>
-    );
-  }
-  if (state.error || !state.paragraphs?.length) {
-    return (
-      <p className="py-3 text-xs text-ink-dim">
-        Full text couldn’t be extracted from this source ({state.error ?? "no text"}). Use the
-        original link above.
-      </p>
-    );
-  }
-  return (
-    <div className="prose-earthos mt-2">
-      {state.paragraphs.map((p, i) => <p key={i}>{p}</p>)}
-    </div>
-  );
+  return <ArticleContent state={state} />;
 }
 
 function RepoReadme({ repo }: { repo: string }) {
@@ -88,7 +87,9 @@ export function ReaderPane({ item, onClose }: { item: Item; onClose?: () => void
   const [saved, setSaved] = useState(false);
   useEffect(() => setSaved(isBookmarked(item.id)), [item.id]);
 
-  const isNews = (item.module === "news" || item.tags.includes("maritime-news")) && item.contentPolicy !== "metadata_only" && item.url;
+  const isPdf = item.tags.includes("pdf") || (item.url && /\.pdf(\?|#|$)/i.test(item.url));
+  const isNews = (item.module === "news" || item.tags.includes("maritime-news") || item.module === "government" || item.module === "cyber")
+    && item.contentPolicy !== "metadata_only" && item.url;
   const repo = item.extra?.repo as string | undefined;
   const chartSymbol = item.extra?.symbol as string | undefined;
   const assetClass = item.extra?.assetClass as string | undefined;
@@ -120,16 +121,16 @@ export function ReaderPane({ item, onClose }: { item: Item; onClose?: () => void
 
       <h2 className="mb-1 text-lg font-semibold leading-snug text-ink">{item.title}</h2>
       {item.summary && item.summary !== item.title && (
-        <p className="text-sm leading-relaxed text-[#b8c2cc]">{item.summary}</p>
+        <p className="text-sm leading-relaxed text-soft">{item.summary}</p>
       )}
 
       {item.body && (
-        <pre className="mt-3 whitespace-pre-wrap border-t border-line pt-3 font-sans text-sm leading-relaxed text-[#b8c2cc]">
+        <pre className="mt-3 whitespace-pre-wrap border-t border-line pt-3 font-sans text-sm leading-relaxed text-soft">
           {item.body}
         </pre>
       )}
 
-      {isNews && item.url && <ArticleText url={item.url} />}
+      {(isNews || isPdf) && item.url && <ArticleText url={item.url} />}
       {repo && <RepoReadme repo={repo} />}
       {chartSymbol && assetClass && (
         <PriceChart

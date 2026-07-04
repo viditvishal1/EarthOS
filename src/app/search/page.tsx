@@ -83,7 +83,7 @@ function SearchInner() {
           <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-violet-300">
             <Sparkles className="h-3.5 w-3.5" /> AI briefing — generated from the sources below
           </div>
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#cfd8e3]">{briefing}</p>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-soft">{briefing}</p>
         </div>
       )}
       {briefingError && (

@@ -5,6 +5,7 @@
 
 import type { ConnectorManifest, ConnectorStatus, Item } from "@/lib/types";
 import { ingestItems } from "@/lib/graph";
+import { publish } from "@/lib/events/bus";
 
 interface CacheEntry {
   at: number;
@@ -105,9 +106,16 @@ export async function runConnector(id: string): Promise<Item[]> {
       itemCount: items.length,
       latencyMs: Date.now() - started,
     });
-    ingestItems(items); // knowledge-graph ingestion
+    ingestItems(items);
+    await publish({ type: "connector.run", connectorId: id, module: manifest.module, itemCount: items.length });
     return items;
   } catch (err) {
+    await publish({
+      type: "connector.error",
+      connectorId: id,
+      module: manifest.module,
+      error: err instanceof Error ? err.message : String(err),
+    });
     store.status.set(id, {
       id,
       module: manifest.module,

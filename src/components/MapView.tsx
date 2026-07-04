@@ -19,6 +19,12 @@ export interface MapLayer {
   icon?: "plane"; // symbol layer with per-feature rotation instead of circles
 }
 
+export interface MapLine {
+  id: string;
+  color: string;
+  coords: [number, number][]; // [lon, lat]
+}
+
 export type BasemapId = "dark" | "satellite" | "streets" | "topo";
 
 const BASEMAPS: Record<BasemapId, { label: string; build: () => StyleSpecification }> = {
@@ -167,10 +173,11 @@ function planeImage(color: string): ImageData {
 }
 
 export function MapView({
-  layers, onSelect, center = [10, 25], zoom = 1.6, className,
+  layers, lines = [], onSelect, center = [10, 25], zoom = 1.6, className,
   defaultBasemap = "dark", defaultGlobe = false,
 }: {
   layers: MapLayer[];
+  lines?: MapLine[];
   onSelect?: (id: string) => void;
   center?: [number, number];
   zoom?: number;
@@ -183,6 +190,8 @@ export function MapView({
   const knownLayers = useRef<Set<string>>(new Set());
   const layersRef = useRef(layers);
   layersRef.current = layers;
+  const linesRef = useRef(lines);
+  linesRef.current = lines;
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
 
@@ -253,9 +262,35 @@ export function MapView({
       knownLayers.current.add(layer.id);
     }
 
-    // Drop layers that were toggled off.
+    // Polylines (orbit ground tracks, routes).
+    for (const line of linesRef.current) {
+      const srcId = `src-line-${line.id}`;
+      const geo: GeoJSON.Feature = {
+        type: "Feature",
+        geometry: { type: "LineString", coordinates: line.coords },
+        properties: {},
+      };
+      const existing = map.getSource(srcId) as maplibregl.GeoJSONSource | undefined;
+      if (existing) {
+        existing.setData(geo);
+      } else {
+        map.addSource(srcId, { type: "geojson", data: geo });
+        map.addLayer({
+          id: `lyr-line-${line.id}`,
+          type: "line",
+          source: srcId,
+          paint: { "line-color": line.color, "line-width": 1.5, "line-opacity": 0.8, "line-dasharray": [2, 1.5] },
+        });
+        knownLayers.current.add(`line-${line.id}`);
+      }
+    }
+
+    // Drop layers/lines that were toggled off.
     for (const known of [...knownLayers.current]) {
-      if (!layersRef.current.some((l) => l.id === known)) {
+      const stillWanted = known.startsWith("line-")
+        ? linesRef.current.some((l) => `line-${l.id}` === known)
+        : layersRef.current.some((l) => l.id === known);
+      if (!stillWanted) {
         if (map.getLayer(`lyr-${known}`)) map.removeLayer(`lyr-${known}`);
         if (map.getSource(`src-${known}`)) map.removeSource(`src-${known}`);
         knownLayers.current.delete(known);
@@ -286,7 +321,13 @@ export function MapView({
     if (!map) return;
     if (map.isStyleLoaded()) applyOverlays(map);
     else map.once("load", () => applyOverlays(map));
-  }, [layers, applyOverlays]);
+  }, [layers, lines, applyOverlays]);
+
+  // Fly to a new center/zoom when the parent changes region.
+  useEffect(() => {
+    mapRef.current?.easeTo({ center, zoom, duration: 900 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [center[0], center[1], zoom]);
 
   // Projection / terrain toggles.
   useEffect(() => {
@@ -317,7 +358,7 @@ export function MapView({
     <div className={`relative ${className ?? "h-[calc(100vh-12rem)] w-full"}`}>
       <div ref={el} className="h-full w-full overflow-hidden rounded-lg border border-line" />
       <div className="absolute left-2 top-2 z-10 flex flex-col gap-1.5">
-        <div className="flex items-center gap-1 rounded-lg border border-line bg-[#0a0d12]/85 p-1 backdrop-blur">
+        <div className="flex items-center gap-1 rounded-lg border border-line bg-body/85 p-1 backdrop-blur">
           <Layers className="ml-1 h-3.5 w-3.5 text-ink-dim" />
           {(Object.keys(BASEMAPS) as BasemapId[]).map((id) => (
             <button
@@ -331,7 +372,7 @@ export function MapView({
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-1 rounded-lg border border-line bg-[#0a0d12]/85 p-1 backdrop-blur">
+        <div className="flex items-center gap-1 rounded-lg border border-line bg-body/85 p-1 backdrop-blur">
           <button
             onClick={() => setGlobe((g) => !g)}
             className={`flex items-center gap-1 rounded-md px-2 py-1 text-[11px] ${

@@ -102,7 +102,62 @@ function hnConnector(id: string, tags: string, label: string) {
 hnConnector("hn_front", "front_page", "Front Page");
 hnConnector("hn_show", "show_hn", "Show HN");
 
-export const STARTUP_CONNECTOR_IDS = ["github_trending", "hn_front", "hn_show"];
+// Product Hunt — GraphQL API (key-gated: PRODUCTHUNT_API_TOKEN)
+registerConnector(
+  {
+    id: "producthunt_today",
+    module: "startup",
+    source: "Product Hunt",
+    sourceUrl: "https://www.producthunt.com",
+    scheduleSeconds: 900,
+    contentPolicy: "metadata_only",
+    entityTypes: ["organization", "technology"],
+    requiresKey: "PRODUCTHUNT_API_TOKEN",
+  },
+  async () => {
+    const token = process.env.PRODUCTHUNT_API_TOKEN!;
+    const res = await fetchWithTimeout("https://api.producthunt.com/v2/api/graphql", {
+      method: "POST",
+      timeoutMs: 12000,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        query: `query { posts(order: VOTES, first: 25) { edges { node {
+          id name tagline url votesCount commentsCount createdAt
+          website topics { edges { node { name } } }
+        } } } }`,
+      }),
+    });
+    if (!res.ok) throw new Error(`Product Hunt HTTP ${res.status}`);
+    const data = await res.json();
+    interface PhNode {
+      id: string; name: string; tagline: string; url: string;
+      votesCount: number; commentsCount: number; createdAt: string; website?: string;
+      topics?: { edges: { node: { name: string } }[] };
+    }
+    const edges: { node: PhNode }[] = data?.data?.posts?.edges ?? [];
+    return edges.map(({ node: p }): Item => ({
+      id: `ph:${p.id}`,
+      module: "startup",
+      connectorId: "producthunt_today",
+      title: p.name,
+      summary: `${p.tagline} · ${p.votesCount} votes · ${p.commentsCount} comments`,
+      source: "Product Hunt",
+      url: p.url,
+      timestamp: p.createdAt,
+      severity: Math.min(10, p.votesCount / 50),
+      severityLabel: `${p.votesCount} votes`,
+      tags: ["producthunt", ...(p.topics?.edges?.map((e) => e.node.name.toLowerCase()) ?? []).slice(0, 3)],
+      entities: extractEntitiesFromText(`${p.name} ${p.tagline}`),
+      contentPolicy: "metadata_only",
+      extra: { website: p.website },
+    }));
+  },
+);
+
+export const STARTUP_CONNECTOR_IDS = ["github_trending", "hn_front", "hn_show", "producthunt_today"];
 
 /** Fetch a repository README (raw markdown) for in-app rendering. */
 export async function fetchReadme(repo: string): Promise<string | null> {

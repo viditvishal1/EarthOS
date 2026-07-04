@@ -10,11 +10,12 @@ import { ReaderPane } from "@/components/ReaderPane";
 import { ModuleView, timeAgo } from "@/components/ModuleView";
 
 const REGION_OPTIONS = [
-  { id: "europe", label: "Europe", center: [10, 50] as [number, number] },
-  { id: "usa", label: "United States", center: [-98, 38] as [number, number] },
-  { id: "india", label: "India / South Asia", center: [79, 22] as [number, number] },
-  { id: "easia", label: "East Asia", center: [115, 33] as [number, number] },
-  { id: "mideast", label: "Middle East", center: [47, 27] as [number, number] },
+  { id: "global", label: "🌍 Global", center: [20, 25] as [number, number], zoom: 1.7 },
+  { id: "europe", label: "Europe", center: [10, 50] as [number, number], zoom: 3.8 },
+  { id: "usa", label: "United States", center: [-98, 38] as [number, number], zoom: 3.8 },
+  { id: "india", label: "India / South Asia", center: [79, 22] as [number, number], zoom: 3.8 },
+  { id: "easia", label: "East Asia", center: [115, 33] as [number, number], zoom: 3.8 },
+  { id: "mideast", label: "Middle East", center: [47, 27] as [number, number], zoom: 3.8 },
 ];
 
 export default function AviationPage() {
@@ -58,7 +59,7 @@ export default function AviationPage() {
             </button>
           ))}
           <span className="ml-auto text-[11px] text-ink-dim">
-            {flights.length} aircraft{fetchedAt ? ` · ${timeAgo(fetchedAt)}` : ""} · OpenSky Network
+            {flights.length.toLocaleString()} aircraft{fetchedAt ? ` · ${timeAgo(fetchedAt)}` : ""} · {flights[0]?.source ?? "OpenSky / adsb.lol"}
           </span>
         </div>
         {error && (
@@ -68,7 +69,7 @@ export default function AviationPage() {
           <MapView
             layers={layers}
             center={region.center}
-            zoom={3.8}
+            zoom={region.zoom}
             className="h-[52vh] w-full"
             onSelect={(id) => setSelected(flights.find((f) => f.id === id) ?? null)}
           />

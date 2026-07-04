@@ -4,12 +4,53 @@
 import type { Item } from "@/lib/types";
 import { fetchWithTimeout, registerConnector } from "./framework";
 
-export const REGIONS: Record<string, { label: string; bbox: [number, number, number, number] }> = {
-  europe: { label: "Europe", bbox: [35, -12, 62, 32] },
-  usa: { label: "United States", bbox: [24, -126, 50, -66] },
-  india: { label: "India / South Asia", bbox: [5, 65, 37, 95] },
-  easia: { label: "East Asia", bbox: [18, 95, 48, 148] },
-  mideast: { label: "Middle East", bbox: [12, 32, 42, 65] },
+// Each region has a bbox (for OpenSky) and a set of probe points (for the
+// adsb.lol fallback, which queries a 250 nm radius per point). "global"
+// has no bbox — it is served purely by probes at the world's traffic hubs.
+export const REGIONS: Record<
+  string,
+  { label: string; bbox?: [number, number, number, number]; probes: [number, number][] }
+> = {
+  global: {
+    label: "Global",
+    probes: [
+      [50, 9], [51.5, 0], [41, -4], [59, 18], [38, 23],           // Europe
+      [40.7, -74], [33.7, -84.4], [41.9, -87.6], [32.9, -97],     // US East/Central
+      [34, -118], [47.4, -122.3], [39.8, -104.9],                 // US West
+      [45.5, -73.6], [19.4, -99.1], [-23.4, -46.5], [4.7, -74],   // Canada/LatAm
+      [28.6, 77.2], [19.1, 72.9], [13, 77.6],                     // India
+      [25.2, 55.3], [26.3, 50.6], [30, 31.4], [41, 29],           // Middle East
+      [31.2, 121.5], [22.3, 113.9], [35.5, 139.8], [37.5, 126.8], // East Asia
+      [1.35, 103.99], [13.7, 100.75], [-6.1, 106.7],              // SE Asia
+      [-33.9, 151.2], [-37.7, 144.8],                             // Australia
+      [-26.1, 28.2], [6.6, 3.3],                                  // Africa
+    ],
+  },
+  europe: {
+    label: "Europe",
+    bbox: [35, -12, 62, 32],
+    probes: [[50, 9], [51.5, 0], [41, -4], [59, 18], [38, 23], [52.2, 21], [45.5, 9.2]],
+  },
+  usa: {
+    label: "United States",
+    bbox: [24, -126, 50, -66],
+    probes: [[40.7, -74], [33.7, -84.4], [41.9, -87.6], [32.9, -97], [34, -118], [47.4, -122.3], [39.8, -104.9], [25.8, -80.3]],
+  },
+  india: {
+    label: "India / South Asia",
+    bbox: [5, 65, 37, 95],
+    probes: [[28.6, 77.2], [19.1, 72.9], [13, 77.6], [22.6, 88.4], [17.2, 78.4], [24.9, 67.2]],
+  },
+  easia: {
+    label: "East Asia",
+    bbox: [18, 95, 48, 148],
+    probes: [[31.2, 121.5], [22.3, 113.9], [35.5, 139.8], [37.5, 126.8], [39.5, 116.4], [25, 121.2]],
+  },
+  mideast: {
+    label: "Middle East",
+    bbox: [12, 32, 42, 65],
+    probes: [[25.2, 55.3], [26.3, 50.6], [30, 31.4], [41, 29], [24.4, 54.6], [21.7, 39.2]],
+  },
 };
 
 type OpenSkyState = [
@@ -20,6 +61,7 @@ type OpenSkyState = [
 
 async function fetchOpenSky(region: string): Promise<Item[]> {
   const r = REGIONS[region] ?? REGIONS.europe;
+  if (!r.bbox) throw new Error("no bbox for this region — use probes");
   const [lamin, lomin, lamax, lomax] = r.bbox;
   const url = `https://opensky-network.org/api/states/all?lamin=${lamin}&lomin=${lomin}&lamax=${lamax}&lomax=${lomax}`;
   const res = await fetchWithTimeout(url, { timeoutMs: 12000 });
@@ -75,16 +117,8 @@ interface AdsbAircraft {
  */
 async function fetchAdsbLol(region: string): Promise<Item[]> {
   const r = REGIONS[region] ?? REGIONS.europe;
-  const [lamin, lomin, lamax, lomax] = r.bbox;
-  const midLat = (lamin + lamax) / 2;
-  const midLon = (lomin + lomax) / 2;
-  const probes: [number, number][] = [
-    [midLat, midLon],
-    [(midLat + lamax) / 2, (midLon + lomin) / 2],
-    [(midLat + lamin) / 2, (midLon + lomax) / 2],
-  ];
   const results = await Promise.allSettled(
-    probes.map(async ([lat, lon]) => {
+    r.probes.map(async ([lat, lon]) => {
       const res = await fetchWithTimeout(
         `https://api.adsb.lol/v2/lat/${lat.toFixed(2)}/lon/${lon.toFixed(2)}/dist/250`,
         { timeoutMs: 10000 },
@@ -103,7 +137,7 @@ async function fetchAdsbLol(region: string): Promise<Item[]> {
     }
   }
   if (seen.size === 0) throw new Error("adsb.lol returned no aircraft");
-  return [...seen.values()].slice(0, 600).map((ac): Item => {
+  return [...seen.values()].slice(0, 4000).map((ac): Item => {
     const callsign = (ac.flight ?? "").trim() || ac.r || ac.hex.toUpperCase();
     const airlinePrefix = callsign.match(/^[A-Z]{3}/)?.[0];
     return {
@@ -135,6 +169,8 @@ async function fetchAdsbLol(region: string): Promise<Item[]> {
 }
 
 export async function fetchFlights(region: string): Promise<Item[]> {
+  const r = REGIONS[region] ?? REGIONS.europe;
+  if (!r.bbox) return fetchAdsbLol(region); // global: probes only
   try {
     return await fetchOpenSky(region);
   } catch {
@@ -207,4 +243,4 @@ registerConnector(
   },
 );
 
-export const AVIATION_CONNECTOR_IDS = ["opensky_states", "faa_status"];
+export const AVIATION_CONNECTOR_IDS = ["opensky_states", "faa_status", "faa_notams"];

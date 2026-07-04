@@ -21,6 +21,10 @@ No keys are required to run. Optional keys in `.env.local`:
 | `GEMINI_API_KEY` | AI Analyst, AI search briefings | https://aistudio.google.com/apikey (free tier) |
 | `GEMINI_MODEL` | Model override (default `gemini-2.5-flash`) | — |
 | `AISHUB_API_KEY` | Live AIS vessel positions | https://www.aishub.net (free membership) |
+| `PRODUCTHUNT_API_TOKEN` | Product Hunt daily launches | https://api.producthunt.com/v2/docs |
+| `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` | Persistent article cache + ingest log | https://supabase.com (free tier) |
+| `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` | Redis event bus | https://upstash.com (free tier) |
+| `EARTHOS_INGEST_SECRET` | Rust connector worker → `/api/ingest` | set any strong secret |
 
 ## Modules
 
@@ -28,14 +32,14 @@ No keys are required to run. Optional keys in `.env.local`:
 |---|---|
 | Global Search | Cross-module search over every connector + Google News RSS + data.gov, with AI briefing |
 | Earth View | USGS earthquakes, NASA EONET (wildfires/storms/volcanoes), OpenSky flights, live ISS |
-| News Intelligence | BBC, Guardian, Al Jazeera, NPR, TechCrunch, Ars Technica, The Verge, The Hindu — with in-app article extraction |
+| News Intelligence | 8 outlet RSS feeds + Google News country/category editions — in-app reader with PDF support & cache |
 | Cyber Intelligence | NVD CVEs (7-day window), CISA Known Exploited Vulnerabilities, vendor watchlist with highlighting |
-| Aviation | OpenSky Network live positions per region, FAA NAS airport delays |
+| Aviation | Global live flights (OpenSky + adsb.lol fallback), FAA delays, NOTAMs |
 | Maritime | AISHub vessels (key-gated), maritime news signals |
-| Space | ISS telemetry (wheretheiss.at), Launch Library 2, NOAA SWPC space weather, CelesTrak new satellites |
+| Space | ISS telemetry, orbit globe (CelesTrak TLE + SGP4), solar system view, launches, space weather |
 | Markets | Yahoo Finance indices/equities, CoinGecko crypto — in-app price charts |
-| Startup Intelligence | GitHub trending (README rendered in-app), Hacker News front page + Show HN |
-| Government & Legal | Federal Register, CourtListener opinions, data.gov catalog search |
+| Startup Intelligence | GitHub trending, Hacker News, Product Hunt (key-gated) |
+| Government & Legal | Federal Register, CourtListener, USPTO patents (PDF in-app), data.gov |
 | Infrastructure Monitor | Public Statuspage APIs (GitHub, Cloudflare, Vercel, OpenAI, …) — health board + incident feed |
 | City Digital Twin | Open-Meteo weather + air quality, nearby natural events, city news — composite per-city view |
 | Knowledge Graph | Entities auto-extracted from every connector; force-directed explorer with neighborhood drill-down |
@@ -50,8 +54,11 @@ Next.js 15 (App Router, TypeScript, Tailwind v4)
 │                         content_policy enforcement (full_cache/excerpt/metadata)
 ├── src/lib/graph.ts      Knowledge graph store — entities + co-occurrence edges
 │                         ingested from every connector run
-├── src/lib/ai.ts         Gemini layer — retrieval-grounded, output cached by
-│                         content hash so identical clusters aren't re-summarized
+├── src/lib/article-cache.ts  Persistent article cache (in-process + optional Supabase)
+├── src/lib/db/               Supabase persistence layer (key-gated)
+├── src/lib/events/bus.ts     Event bus (in-process + optional Upstash Redis)
+├── src/lib/ai.ts             Gemini layer — retrieval-grounded Q&A + briefings
+├── workers/connector-rs/     Rust polling worker → POST /api/ingest
 ├── src/app/api/          API gateway — module feeds, search, graph, article
 │                         extraction, market history, analyst
 └── src/app/…             14 module UIs sharing FilterBar, ReaderPane, EntityChip,

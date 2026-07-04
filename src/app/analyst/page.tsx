@@ -70,7 +70,7 @@ export default function AnalystPage() {
     // Make [n] citations clickable into the reader pane.
     const parts = turn.answer.split(/(\[\d+\])/g);
     return (
-      <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#cfd8e3]">
+      <p className="whitespace-pre-wrap text-sm leading-relaxed text-soft">
         {parts.map((p, i) => {
           const m = p.match(/^\[(\d+)\]$/);
           if (m && turn.sources) {

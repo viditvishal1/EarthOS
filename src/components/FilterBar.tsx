@@ -15,6 +15,7 @@ export interface FilterState {
   q: string;
   sources: string[];
   tags: string[];
+  regions: string[];
   minSeverity: number;
   rangeHours: number; // 0 = all time
 }
@@ -24,6 +25,7 @@ export function readFilters(sp: URLSearchParams): FilterState {
     q: sp.get("fq") ?? "",
     sources: sp.get("fsrc")?.split("|").filter(Boolean) ?? [],
     tags: sp.get("ftag")?.split("|").filter(Boolean) ?? [],
+    regions: sp.get("freg")?.split("|").filter(Boolean) ?? [],
     minSeverity: parseFloat(sp.get("fsev") ?? "0") || 0,
     rangeHours: parseInt(sp.get("frange") ?? "0", 10) || 0,
   };
@@ -35,6 +37,7 @@ export function applyFilters(items: Item[], f: FilterState): Item[] {
   return items.filter((it) => {
     if (f.sources.length && !f.sources.includes(it.source)) return false;
     if (f.tags.length && !f.tags.some((t) => it.tags.includes(t))) return false;
+    if (f.regions.length && !f.regions.includes(it.region ?? "")) return false;
     if (f.minSeverity > 0 && (it.severity ?? 0) < f.minSeverity) return false;
     if (cutoff && new Date(it.timestamp).getTime() < cutoff) return false;
     if (terms.length) {
@@ -105,6 +108,7 @@ export function FilterBar({ items, module }: { items: Item[]; module: string }) 
       setOrDel("fq", next.q);
       setOrDel("fsrc", next.sources.join("|"));
       setOrDel("ftag", next.tags.join("|"));
+      setOrDel("freg", next.regions.join("|"));
       setOrDel("fsev", next.minSeverity ? String(next.minSeverity) : "");
       setOrDel("frange", next.rangeHours ? String(next.rangeHours) : "");
       router.replace(`${pathname}?${p.toString()}`, { scroll: false });
@@ -114,8 +118,13 @@ export function FilterBar({ items, module }: { items: Item[]; module: string }) 
 
   const sources = useMemo(() => [...new Set(items.map((i) => i.source))].sort(), [items]);
   const tags = useMemo(() => [...new Set(items.flatMap((i) => i.tags))].sort(), [items]);
+  const regions = useMemo(
+    () => [...new Set(items.map((i) => i.region).filter((r): r is string => Boolean(r)))].sort(),
+    [items],
+  );
   const active =
-    filters.q || filters.sources.length || filters.tags.length || filters.minSeverity || filters.rangeHours;
+    filters.q || filters.sources.length || filters.tags.length || filters.regions.length ||
+    filters.minSeverity || filters.rangeHours;
 
   return (
     <div className="mb-3 flex flex-wrap items-center gap-2" role="group" aria-label="Filters">
@@ -138,6 +147,9 @@ export function FilterBar({ items, module }: { items: Item[]; module: string }) 
       </select>
       <MultiSelect label="Source" options={sources} selected={filters.sources} onChange={(v) => set({ sources: v })} />
       <MultiSelect label="Tags" options={tags} selected={filters.tags} onChange={(v) => set({ tags: v })} />
+      {regions.length > 1 && (
+        <MultiSelect label="Region" options={regions} selected={filters.regions} onChange={(v) => set({ regions: v })} />
+      )}
       <label className="flex items-center gap-1.5 text-xs text-ink-dim">
         Min severity
         <input
@@ -151,7 +163,7 @@ export function FilterBar({ items, module }: { items: Item[]; module: string }) 
 
       {active ? (
         <button
-          onClick={() => set({ q: "", sources: [], tags: [], minSeverity: 0, rangeHours: 0 })}
+          onClick={() => set({ q: "", sources: [], tags: [], regions: [], minSeverity: 0, rangeHours: 0 })}
           className="flex items-center gap-1 rounded-md border border-line px-2 py-1.5 text-xs text-ink-dim hover:text-ink"
         >
           <RotateCcw className="h-3 w-3" /> Reset

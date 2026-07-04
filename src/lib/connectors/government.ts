@@ -89,7 +89,7 @@ registerConnector(
   },
 );
 
-export const GOVERNMENT_CONNECTOR_IDS = ["federal_register", "courtlistener_opinions"];
+export const GOVERNMENT_CONNECTOR_IDS = ["federal_register", "courtlistener_opinions", "patentsview_recent"];
 
 /** Search the data.gov CKAN catalog on demand. */
 export async function searchDataGov(q: string): Promise<Item[]> {

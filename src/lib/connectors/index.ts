@@ -5,11 +5,13 @@ import "./news";
 import "./earth";
 import "./cyber";
 import "./aviation";
+import "./notams";
 import "./maritime";
 import "./space";
 import "./markets";
 import "./startup";
 import "./government";
+import "./patents";
 import "./infrastructure";
 
 export { NEWS_CONNECTOR_IDS, searchGoogleNews } from "./news";
