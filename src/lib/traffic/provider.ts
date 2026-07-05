@@ -1,4 +1,5 @@
 import { isInIndia } from "@/lib/geo/region";
+import { enrichSegmentsWithRoadNames } from "@/lib/traffic/enrich";
 import { fetchMapplsTrafficFlow, mapplsTrafficEnabled } from "@/lib/traffic/mappls";
 import { fetchTomtomTrafficFlow, tomtomTrafficEnabled } from "@/lib/traffic/tomtom";
 import type { TrafficBbox, TrafficFlowSegment, TrafficProvider } from "@/lib/traffic/types";
@@ -47,10 +48,12 @@ export async function fetchTrafficForBbox(bbox: TrafficBbox): Promise<TrafficFet
     for (const seg of batch) byId.set(`${seg.provider}:${seg.id}`, seg);
   }
 
+  const segments = await enrichSegmentsWithRoadNames([...byId.values()]);
+
   return {
     enabled: true,
     providers,
-    segments: [...byId.values()],
+    segments,
     region: india ? "india" : "global",
   };
 }

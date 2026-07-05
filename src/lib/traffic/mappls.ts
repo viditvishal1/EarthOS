@@ -75,7 +75,10 @@ async function probePair(
   const currentSpeed = speedKmh(distance, trafficDuration);
   const freeFlowSpeed = speedKmh(distance, freeDuration) || currentSpeed || 40;
   const mid = coords[Math.floor(coords.length / 2)];
-  const roadName = traffic.legs?.[0]?.summary;
+  const roadName = traffic.legs
+    ?.map((leg) => leg.summary?.trim())
+    .filter(Boolean)
+    .join(" · ");
 
   return {
     id: `mappls:${coords[0].join(",")}:${coords[coords.length - 1].join(",")}`,
