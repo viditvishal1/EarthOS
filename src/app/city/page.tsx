@@ -8,6 +8,7 @@ import { CloudSun, MapPin, Newspaper, Map, Wind, Car, Globe2, Map as MapIcon, Ey
 import type { Item } from "@/lib/types";
 import { MapView, type MapLine } from "@/components/MapView";
 import { MapplsCityMap } from "@/components/MapplsCityMap";
+import { StreetViewPanel } from "@/components/StreetViewPanel";
 import { isInIndia } from "@/lib/geo/region";
 import { ItemCard } from "@/components/ModuleView";
 import { ReaderPane } from "@/components/ReaderPane";
@@ -299,35 +300,23 @@ export default function CityPage() {
         <div className="rounded-lg border border-line bg-panel p-4">
           <h2 className="mb-2 text-sm font-semibold text-ink">Street View — {label}</h2>
           <p className="mb-3 text-xs text-ink-dim">
-            Immersive street-level panorama at the pinned location ({loc.lat.toFixed(4)}°, {loc.lon.toFixed(4)}°).
+            Immersive panorama is embedded in the map panel. Click the mini-map to move the pin — the
+            street imagery reloads at the new coordinates.
           </p>
-          {gmapsKey ? (
-            <iframe
-              title="Google Street View"
-              className="h-[45vh] min-h-[280px] w-full rounded-md border border-line"
-              src={`https://www.google.com/maps/embed/v1/streetview?key=${gmapsKey}&location=${loc.lat},${loc.lon}&heading=0&pitch=0&fov=80`}
-              allowFullScreen
-            />
-          ) : (
-            <div className="space-y-3">
-              <p className="text-xs text-amber-400/90">
-                Set NEXT_PUBLIC_GOOGLE_MAPS_KEY for Google Street View. Using Mapillary fallback.
+          <div className="space-y-2 text-xs text-ink-dim">
+            <p>
+              <span className="text-ink">Provider:</span>{" "}
+              {gmapsKey ? "Google Street View" : "Mapillary (open imagery)"}
+            </p>
+            <p className="mono">
+              {loc.lat.toFixed(5)}°, {loc.lon.toFixed(5)}°
+            </p>
+            {!gmapsKey && (
+              <p className="text-amber-400/90">
+                Set NEXT_PUBLIC_GOOGLE_MAPS_KEY for Google Street View. Mapillary is shown inline as fallback.
               </p>
-              <a
-                href={`https://www.mapillary.com/app/?lat=${loc.lat}&lng=${loc.lon}&z=17`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block rounded-md border border-line bg-panel-2 p-3 text-xs text-indigo-300 hover:bg-panel"
-              >
-                Open Mapillary street imagery near this pin →
-              </a>
-              <div className="rounded-md border border-line bg-panel-2 p-4 text-center text-xs text-ink-dim">
-                Street-level imagery unavailable without Google Maps key.
-                <br />
-                Use the Streets layer for OSM road detail, or open Mapillary above.
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       );
     }
@@ -439,7 +428,16 @@ export default function CityPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
-        {useMapplsMap ? (
+        {layer === "streetview" ? (
+          <StreetViewPanel
+            lat={loc.lat}
+            lon={loc.lon}
+            label={label}
+            googleMapsKey={gmapsKey}
+            className="h-[58vh] w-full"
+            onLocationPick={(lat, lon) => loadPlace(lat, lon)}
+          />
+        ) : useMapplsMap ? (
           <MapplsCityMap
             lat={loc.lat}
             lon={loc.lon}
