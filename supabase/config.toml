@@ -1,0 +1,7 @@
+# Supabase project link — project ref: etgqlhlxseclffuagjsa
+# Dashboard: https://supabase.com/dashboard/project/etgqlhlxseclffuagjsa
+
+project_id = "etgqlhlxseclffuagjsa"
+
+[api]
+enabled = true

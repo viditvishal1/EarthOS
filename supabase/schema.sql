@@ -1,4 +1,4 @@
--- EarthOS Supabase schema — run in SQL editor when enabling cloud persistence.
+-- EarthOS Supabase schema — run in SQL editor: https://supabase.com/dashboard/project/_/sql
 -- Tables mirror the in-process stores so swapping backends is drop-in.
 
 create table if not exists article_cache (
@@ -33,10 +33,34 @@ create table if not exists event_log (
 
 create index if not exists event_log_type on event_log (type, created_at desc);
 
--- Optional: saved bookmarks synced from clients (future auth hook-up)
 create table if not exists bookmarks (
   id text primary key,
   user_id uuid,
   item jsonb not null,
   created_at timestamptz not null default now()
 );
+
+-- Row Level Security — required when using the publishable/anon key.
+-- EarthOS is a single-tenant intelligence dashboard at prototype scale;
+-- tighten these policies when you add user auth.
+
+alter table article_cache enable row level security;
+alter table ingested_items enable row level security;
+alter table event_log enable row level security;
+alter table bookmarks enable row level security;
+
+drop policy if exists "earthos_article_cache_all" on article_cache;
+create policy "earthos_article_cache_all" on article_cache
+  for all using (true) with check (true);
+
+drop policy if exists "earthos_ingested_items_all" on ingested_items;
+create policy "earthos_ingested_items_all" on ingested_items
+  for all using (true) with check (true);
+
+drop policy if exists "earthos_event_log_all" on event_log;
+create policy "earthos_event_log_all" on event_log
+  for all using (true) with check (true);
+
+drop policy if exists "earthos_bookmarks_all" on bookmarks;
+create policy "earthos_bookmarks_all" on bookmarks
+  for all using (true) with check (true);

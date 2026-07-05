@@ -11,6 +11,7 @@ import type { ConnectorStatus } from "@/lib/types";
 export default function SettingsPage() {
   const [connectors, setConnectors] = useState<ConnectorStatus[]>([]);
   const [aiEnabled, setAiEnabled] = useState<boolean | null>(null);
+  const [supabase, setSupabase] = useState<{ configured?: boolean; ok?: boolean; mode?: string; error?: string; url?: string } | null>(null);
   const [at, setAt] = useState<string>();
 
   useEffect(() => {
@@ -18,6 +19,7 @@ export default function SettingsPage() {
       fetch("/api/status").then((r) => r.json()).then((d) => {
         setConnectors(d.connectors ?? []);
         setAiEnabled(d.aiEnabled ?? false);
+        setSupabase(d.supabase ?? null);
         setAt(d.fetchedAt);
       });
     load();
@@ -45,9 +47,21 @@ export default function SettingsPage() {
             )}
           </p>
           <p>
+            Supabase:{" "}
+            {supabase == null ? "checking…" : !supabase.configured ? (
+              <span className="text-amber-400">not configured</span>
+            ) : supabase.ok ? (
+              <span className="text-emerald-400">connected ({supabase.mode} key) · {supabase.url}</span>
+            ) : (
+              <span className="text-amber-400" title={supabase.error}>configured but not ready — {supabase.error}</span>
+            )}
+          </p>
+          <p>
             Keys are set server-side in <code className="mono rounded bg-panel-2 px-1">.env.local</code> (never
             exposed to the browser, never committed): <code className="mono rounded bg-panel-2 px-1">GEMINI_API_KEY</code> for
-            AI features, <code className="mono rounded bg-panel-2 px-1">AISHUB_API_KEY</code> for live vessel positions.
+            AI features, <code className="mono rounded bg-panel-2 px-1">AISHUB_API_KEY</code> for live vessel positions,{" "}
+            <code className="mono rounded bg-panel-2 px-1">SUPABASE_URL</code> +{" "}
+            <code className="mono rounded bg-panel-2 px-1">SUPABASE_PUBLISHABLE_KEY</code> for cloud persistence.
             Restart the dev server after changing them.
           </p>
         </div>

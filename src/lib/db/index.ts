@@ -1,11 +1,29 @@
-// Supabase persistence layer — activated when SUPABASE_URL + SUPABASE_SERVICE_KEY
-// are set. Falls back to no-op so the app runs at $0 without accounts.
+// Supabase persistence layer — activated when SUPABASE_URL + a key are set.
+// Accepts service role (server-only) or publishable/anon key (with RLS policies).
 
 import type { CachedArticle } from "@/lib/article-cache";
 import type { Item } from "@/lib/types";
 
+/** Resolve Supabase API key — service role preferred; publishable/anon for prototype tier. */
+export function supabaseKey(): string | undefined {
+  return (
+    process.env.SUPABASE_SERVICE_KEY ??
+    process.env.SUPABASE_ANON_KEY ??
+    process.env.SUPABASE_PUBLISHABLE_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+}
+
+export function supabaseUrl(): string | undefined {
+  return process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+}
+
 export function dbEnabled(): boolean {
-  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY);
+  return Boolean(supabaseUrl() && supabaseKey());
+}
+
+export function dbUsesPublishableKey(): boolean {
+  return dbEnabled() && !process.env.SUPABASE_SERVICE_KEY;
 }
 
 type SupabaseClient = {
@@ -26,12 +44,46 @@ async function sb(): Promise<SupabaseClient | null> {
   if (!dbEnabled()) return null;
   if (client) return client;
   const { createClient } = await import("@supabase/supabase-js");
-  client = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  ) as unknown as SupabaseClient;
+  client = createClient(supabaseUrl()!, supabaseKey()!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  }) as unknown as SupabaseClient;
   return client;
+}
+
+/** Ping Supabase — returns ok if URL + key work and tables exist. */
+export async function checkSupabaseHealth(): Promise<{
+  enabled: boolean;
+  ok: boolean;
+  mode?: "service" | "publishable";
+  error?: string;
+}> {
+  if (!dbEnabled()) return { enabled: false, ok: false };
+  try {
+    const c = await sb();
+    if (!c) return { enabled: false, ok: false };
+    const { error } = await c.from("article_cache").select("id").eq("id", "__healthcheck__").maybeSingle();
+    if (error?.message?.includes("does not exist") || error?.message?.includes("schema cache")) {
+      return {
+        enabled: true,
+        ok: false,
+        mode: dbUsesPublishableKey() ? "publishable" : "service",
+        error: "Tables missing — run supabase/schema.sql in the Supabase SQL editor",
+      };
+    }
+    return {
+      enabled: true,
+      ok: !error || error.message.includes("0 rows"),
+      mode: dbUsesPublishableKey() ? "publishable" : "service",
+      error: error && !error.message.includes("0 rows") ? error.message : undefined,
+    };
+  } catch (err) {
+    return {
+      enabled: true,
+      ok: false,
+      mode: dbUsesPublishableKey() ? "publishable" : "service",
+      error: err instanceof Error ? err.message : "connection failed",
+    };
+  }
 }
 
 export async function upsertArticleCache(key: string, data: CachedArticle): Promise<void> {

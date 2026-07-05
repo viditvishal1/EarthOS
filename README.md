@@ -22,7 +22,7 @@ No keys are required to run. Optional keys in `.env.local`:
 | `GEMINI_MODEL` | Model override (default `gemini-2.5-flash`) | — |
 | `AISHUB_API_KEY` | Live AIS vessel positions | https://www.aishub.net (free membership) |
 | `PRODUCTHUNT_API_TOKEN` | Product Hunt daily launches | https://api.producthunt.com/v2/docs |
-| `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` | Persistent article cache + ingest log | https://supabase.com (free tier) |
+| `SUPABASE_URL` + `SUPABASE_PUBLISHABLE_KEY` | Persistent article cache + ingest log | https://supabase.com/dashboard |
 | `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` | Redis event bus | https://upstash.com (free tier) |
 | `EARTHOS_INGEST_SECRET` | Rust connector worker → `/api/ingest` | set any strong secret |
 
