@@ -33,6 +33,7 @@ function GraphInner() {
 
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [hood, setHood] = useState<Neighborhood | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [type, setType] = useState("all");
   const [loading, setLoading] = useState(true);
@@ -57,12 +58,24 @@ function GraphInner() {
 
   const loadSnapshot = useCallback(() => {
     setLoading(true);
+    setLoadError(null);
     const p = new URLSearchParams();
     if (q) p.set("q", q);
     if (type !== "all") p.set("type", type);
     fetch(`/api/graph?${p.toString()}`)
       .then((r) => r.json())
-      .then(setSnap)
+      .then((d) => {
+        if (d.error || !Array.isArray(d.entities) || !d.totals) {
+          setSnap(null);
+          setLoadError(typeof d.error === "string" ? d.error : "Failed to load graph");
+          return;
+        }
+        setSnap(d);
+      })
+      .catch(() => {
+        setSnap(null);
+        setLoadError("Failed to load graph");
+      })
       .finally(() => setLoading(false));
   }, [q, type]);
 
@@ -74,7 +87,19 @@ function GraphInner() {
     setSelectedItem(null);
     fetch(`/api/entity?id=${encodeURIComponent(entityParam)}`)
       .then((r) => r.json())
-      .then((d) => setHood(d.center ? d : null))
+      .then((d) => {
+        if (d.error || !d.center) {
+          setHood(null);
+          setLoadError(typeof d.error === "string" ? d.error : "Entity not found");
+          return;
+        }
+        setLoadError(null);
+        setHood(d);
+      })
+      .catch(() => {
+        setHood(null);
+        setLoadError("Failed to load entity");
+      })
       .finally(() => setLoading(false));
   }, [entityParam]);
 
@@ -103,12 +128,23 @@ function GraphInner() {
             </select>
           </>
         )}
-        {snap && !hood && (
+        {snap?.totals && !hood && (
           <span className="ml-auto text-[11px] text-ink-dim">
             {snap.totals.entities.toLocaleString()} entities · {snap.totals.edges.toLocaleString()} edges (top {snap.entities.length} shown)
           </span>
         )}
       </div>
+
+      {loadError && !loading && (
+        <div className="mb-3 rounded-lg border border-amber-800/60 bg-amber-950/30 px-3 py-2 text-sm text-amber-200">
+          {loadError}
+          {!hood && (
+            <button onClick={loadSnapshot} className="ml-2 text-xs underline hover:text-amber-100">
+              Retry
+            </button>
+          )}
+        </div>
+      )}
 
       {loading && (
         <div className="flex items-center gap-2 py-8 text-sm text-ink-dim">
@@ -123,7 +159,7 @@ function GraphInner() {
               <div className="text-[11px] uppercase tracking-wide text-ink-dim">{hood.center.type}</div>
               <div className="text-lg font-semibold text-ink">{hood.center.name}</div>
               <div className="mt-0.5 text-xs text-ink-dim">
-                degree {hood.center.degree} · seen in: {hood.center.modules.join(", ")} · first {new Date(hood.center.firstSeen).toLocaleDateString()}
+                degree {hood.center.degree ?? 0} · seen in: {(hood.center.modules ?? []).join(", ") || "—"} · first {hood.center.firstSeen ? new Date(hood.center.firstSeen).toLocaleDateString() : "—"}
               </div>
             </div>
             <ForceGraph entities={hood.entities} edges={hood.edges} onSelect={openEntity} height={420} />
@@ -147,7 +183,7 @@ function GraphInner() {
         </div>
       )}
 
-      {!loading && !hood && snap && (
+      {!loading && !hood && snap?.entities && snap.totals && (
         <>
           <div className="mb-4 rounded-lg border border-line bg-panel p-3">
             <div className="mb-2 flex items-center gap-2 text-xs font-medium text-ink">
