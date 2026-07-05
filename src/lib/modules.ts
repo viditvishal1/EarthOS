@@ -11,7 +11,8 @@ export interface ModuleDef {
 }
 
 export const MODULES: ModuleDef[] = [
-  { id: "earth", name: "Earth View", path: "/earth", description: "Live map: earthquakes, wildfires, storms, flights, ISS", accent: "orange" },
+  { id: "earth", name: "Earth View", path: "/earth", description: "Global intelligence home: KPIs, activity, map, signals, markets", accent: "orange" },
+  { id: "dashboard", name: "Dashboard", path: "/dashboard", description: "Distraction-free globe explorer with quick-look panels", accent: "emerald" },
   { id: "news", name: "News Intelligence", path: "/news", description: "In-app reader, clustering, AI summaries", accent: "sky" },
   { id: "conflict", name: "Conflict & Crisis", path: "/conflict", description: "Armed conflict, political violence, humanitarian crises on a live map", accent: "red" },
   { id: "live", name: "Live Channels", path: "/live", description: "Live news TV and public city webcams, grid or focus view", accent: "pink" },

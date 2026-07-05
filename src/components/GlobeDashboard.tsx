@@ -1,140 +1,286 @@
 "use client";
 
-// GlobeDashboard — the hero view: an auto-rotating globe that plots live
-// events, quakes, flights and the ISS, with a HUD legend (top-right, toggles
-// layers), a module rail (bottom-left), a floating detail window on click, a
-// live UTC clock, a coordinate/zoom readout, and a bottom ticker. Theme-aware
-// via the design-system tokens.
+// Globe explorer — self-fetching live layers, quick-module rail (Dashboard tab),
+// layer toggles with counts, auto-rotate, and bottom ticker. Does NOT render
+// the full nav module list (that was the stuck-dropdown bug).
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useState, type ComponentType } from "react";
+import {
+  Zap, CandlestickChart, Tv, Target, Video, AlertTriangle, Biohazard,
+  Radio, Globe2, Map as MapIcon,
+} from "lucide-react";
 import { MapView, type MapLayer } from "@/components/MapView";
 import { Badge } from "@/components/Badge";
-import { MODULES } from "@/lib/modules";
+import { QuickPanel, type QuickKind } from "@/components/quick/QuickPanels";
+import { useGlobeLiveData } from "@/lib/hooks/useGlobeLiveData";
 import type { Item } from "@/lib/types";
 
-const LEGEND_COLORS: Record<string, string> = {
-  events: "var(--color-info)",
-  quakes: "var(--color-warning)",
-  iss: "var(--color-accent-2)",
-  flights: "var(--color-live)",
-};
+const LAYER_META = {
+  events: { label: "Events", color: "var(--color-info)", key: "events" as const },
+  quakes: { label: "Quakes", color: "var(--color-warning)", key: "quakes" as const },
+  iss: { label: "ISS", color: "var(--color-accent-2)", key: "iss" as const },
+  flights: { label: "Flights", color: "var(--color-live)", key: "flights" as const },
+  ships: { label: "Ships", color: "#22d3ee", key: "ships" as const },
+  webcams: { label: "Webcams", color: "#a78bfa", key: "webcams" as const },
+} as const;
 
-type LayerKey = keyof typeof LEGEND_COLORS;
+type LayerKey = keyof typeof LAYER_META;
+
+const QUICK_RAIL: { kind: QuickKind; label: string; Icon: ComponentType<{ className?: string }> }[] = [
+  { kind: "wire", label: "Wire", Icon: Zap },
+  { kind: "stocks", label: "Stocks", Icon: CandlestickChart },
+  { kind: "streams", label: "Streams", Icon: Tv },
+  { kind: "predictions", label: "Predictions", Icon: Target },
+  { kind: "cameras", label: "Cameras", Icon: Video },
+  { kind: "defcon", label: "Defcon", Icon: AlertTriangle },
+  { kind: "outbreaks", label: "Outbreaks", Icon: Biohazard },
+];
+
+type ViewMode = "globe" | "map" | "wire";
 
 export function GlobeDashboard({
-  quakes = [], flights = [], events = [], iss = [],
+  variant = "embedded",
+  fullBleed = false,
+  region = "global",
+  quakes: quakesProp,
+  flights: flightsProp,
+  events: eventsProp,
+  iss: issProp,
 }: {
+  variant?: "embedded" | "dashboard";
+  fullBleed?: boolean;
+  region?: string;
+  /** Optional overrides — when omitted, data is self-fetched. */
   quakes?: Item[];
   flights?: Item[];
   events?: Item[];
   iss?: Item[];
 }) {
-  const [now, setNow] = useState<Date>(new Date());
+  const live = useGlobeLiveData(region);
+  const quakes = quakesProp ?? live.quakes;
+  const flights = flightsProp ?? live.flights;
+  const events = eventsProp ?? live.events;
+  const iss = issProp ?? live.iss;
+  const ships = live.ships;
+  const webcams = live.webcams;
+
+  const [now, setNow] = useState(new Date());
   const [selected, setSelected] = useState<Item | null>(null);
   const [coords, setCoords] = useState<{ lat: number; lon: number; zoom: number } | null>(null);
   const [toggles, setToggles] = useState<Record<LayerKey, boolean>>({
-    events: true, quakes: true, iss: true, flights: true,
+    events: true, quakes: true, iss: true, flights: true, ships: false, webcams: false,
   });
+  const [isolate, setIsolate] = useState<LayerKey | null>(null);
+  const [autoRotate, setAutoRotate] = useState(variant === "dashboard");
+  const [viewMode, setViewMode] = useState<ViewMode>("globe");
+  const [quickOpen, setQuickOpen] = useState<QuickKind | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
 
+  const counts: Record<LayerKey, number> = {
+    events: events.length,
+    quakes: quakes.length,
+    iss: iss.length,
+    flights: flights.length,
+    ships: ships.length,
+    webcams: webcams.length,
+  };
+
+  const activeToggles = useMemo(() => {
+    if (!isolate) return toggles;
+    return Object.fromEntries(
+      (Object.keys(toggles) as LayerKey[]).map((k) => [k, k === isolate]),
+    ) as Record<LayerKey, boolean>;
+  }, [toggles, isolate]);
+
   const layers = useMemo((): MapLayer[] => {
     const out: MapLayer[] = [];
-    if (toggles.events) out.push({ id: "events", color: LEGEND_COLORS.events, items: events, radius: 4 });
-    if (toggles.quakes) out.push({ id: "quakes", color: LEGEND_COLORS.quakes, items: quakes, radius: 3 });
-    if (toggles.iss) out.push({ id: "iss", color: LEGEND_COLORS.iss, items: iss, radius: 6 });
-    if (toggles.flights) out.push({ id: "flights", color: LEGEND_COLORS.flights, items: flights, radius: 2, icon: "plane" });
+    if (activeToggles.events) out.push({ id: "events", color: LAYER_META.events.color, items: events, radius: 4 });
+    if (activeToggles.quakes) out.push({ id: "quakes", color: LAYER_META.quakes.color, items: quakes, radius: 3 });
+    if (activeToggles.iss) out.push({ id: "iss", color: LAYER_META.iss.color, items: iss, radius: 6 });
+    if (activeToggles.flights) out.push({ id: "flights", color: LAYER_META.flights.color, items: flights, radius: 2, icon: "plane" });
+    if (activeToggles.ships) out.push({ id: "ships", color: LAYER_META.ships.color, items: ships, radius: 3 });
+    if (activeToggles.webcams) out.push({ id: "webcams", color: LAYER_META.webcams.color, items: webcams, radius: 4 });
     return out;
-  }, [toggles, events, quakes, iss, flights]);
+  }, [activeToggles, events, quakes, iss, flights, ships, webcams]);
 
-  const allItems = useMemo(() => [...events, ...quakes, ...iss, ...flights], [events, quakes, iss, flights]);
-  const ticker = useMemo(() => allItems.map((i) => i.title).filter(Boolean).slice(0, 24), [allItems]);
+  const allItems = useMemo(
+    () => [...events, ...quakes, ...iss, ...flights, ...ships, ...webcams],
+    [events, quakes, iss, flights, ships, webcams],
+  );
+
+  const ticker = useMemo(
+    () => allItems.map((i) => i.title).filter(Boolean).slice(0, 32),
+    [allItems],
+  );
+
+  const shellClass = fullBleed
+    ? "relative h-full min-h-[420px] w-full overflow-hidden bg-black"
+    : "globe-backdrop relative h-[64vh] min-h-[420px] w-full overflow-hidden rounded-xl border border-line";
+
+  const freshness = live.meta.flightsAgeSeconds != null
+    ? `${Math.round(live.meta.flightsAgeSeconds)}s ago${live.meta.flightsStale ? " · stale" : ""}`
+    : live.loading ? "loading…" : "—";
 
   return (
-    <div className="globe-backdrop relative h-[64vh] min-h-[420px] w-full overflow-hidden rounded-xl border border-line">
-      <MapView
-        layers={layers}
-        onSelect={(id) => setSelected(allItems.find((i) => i.id === id) ?? null)}
-        onMove={setCoords}
-        defaultGlobe
-        autoRotate
-        zoom={1.5}
-        className="h-full w-full"
-      />
+    <div className={shellClass}>
+      {viewMode !== "wire" && (
+        <MapView
+          layers={layers}
+          onSelect={(id) => setSelected(allItems.find((i) => i.id === id) ?? null)}
+          onMove={setCoords}
+          defaultBasemap={variant === "dashboard" ? "satellite" : "dark"}
+          defaultGlobe={viewMode === "globe"}
+          autoRotate={autoRotate && viewMode === "globe"}
+          rotateSpeed={0.04}
+          zoom={variant === "dashboard" ? 1.4 : 1.5}
+          className="h-full w-full [&>div:first-child]:rounded-none [&>div:first-child]:border-0"
+        />
+      )}
 
-      {/* UTC clock, top-right */}
-      <div className="pointer-events-none absolute right-4 top-3 z-10 flex items-center gap-2">
-        <Badge tone="live" pulse>Live</Badge>
-        <span className="mono text-[11px] text-ink-dim">{now.toISOString().replace("T", " ").slice(0, 19)} UTC</span>
+      {viewMode === "wire" && (
+        <div className="flex h-full flex-col bg-body p-4">
+          <p className="mb-3 text-xs text-ink-dim">Wire view — live headline stream (globe hidden)</p>
+          <div className="flex-1 overflow-y-auto rounded-lg border border-line bg-panel p-3">
+            {ticker.length === 0 ? (
+              <p className="text-xs text-ink-dim">Connecting to live feeds…</p>
+            ) : (
+              ticker.map((t, i) => (
+                <div key={i} className="border-b border-line/50 py-2 text-sm text-ink last:border-0">{t}</div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Top bar: view mode + clock */}
+      <div className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex items-start justify-between gap-2 p-3">
+        <div className="pointer-events-auto flex items-center gap-1 rounded-lg border border-line bg-body/90 p-0.5 backdrop-blur">
+          {([
+            { id: "globe" as const, label: "Globe", Icon: Globe2 },
+            { id: "map" as const, label: "Map", Icon: MapIcon },
+            { id: "wire" as const, label: "Wire", Icon: Radio },
+          ]).map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setViewMode(id)}
+              className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[10px] uppercase tracking-wide ${
+                viewMode === id ? "bg-panel-2 text-accent" : "text-ink-dim hover:text-ink"
+              }`}
+            >
+              <Icon className="h-3 w-3" /> {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="pointer-events-auto flex flex-col items-end gap-1">
+          <div className="flex items-center gap-2">
+            <Badge tone="live" pulse>Live</Badge>
+            <span className="mono text-[10px] text-ink-dim">{now.toISOString().replace("T", " ").slice(0, 19)} UTC</span>
+          </div>
+          {variant === "dashboard" && (
+            <span className="mono text-[9px] text-ink-dim">flights {freshness}</span>
+          )}
+        </div>
       </div>
 
-      {/* Legend / layer toggles, top-right */}
-      <div className="hud-window absolute right-4 top-12 z-10 flex flex-col gap-1.5 rounded-lg px-3 py-2.5">
-        <span className="mb-0.5 text-[9px] font-medium uppercase tracking-widest text-ink-dim">Layers</span>
-        {(Object.keys(LEGEND_COLORS) as LayerKey[]).map((key) => {
-          const count =
-            key === "events" ? events.length : key === "quakes" ? quakes.length : key === "iss" ? iss.length : flights.length;
-          return (
-            <button
-              key={key}
-              onClick={() => setToggles((t) => ({ ...t, [key]: !t[key] }))}
-              className="flex items-center gap-2 text-left text-[11px] uppercase tracking-wide"
-            >
-              <span
-                className="h-2 w-2 rounded-full border"
-                style={{ borderColor: LEGEND_COLORS[key], background: toggles[key] ? LEGEND_COLORS[key] : "transparent" }}
-              />
-              <span className={toggles[key] ? "text-ink" : "text-ink-dim"}>{key}</span>
-              <span className="mono ml-auto text-[10px] text-ink-dim">{count}</span>
+      {/* Layers panel — top right */}
+      <div className="hud-window absolute right-3 top-14 z-10 flex w-44 flex-col gap-1 rounded-lg px-2.5 py-2">
+        <div className="mb-0.5 flex items-center justify-between">
+          <span className="text-[9px] font-medium uppercase tracking-widest text-ink-dim">Layers</span>
+          {isolate && (
+            <button type="button" onClick={() => setIsolate(null)} className="text-[9px] text-accent hover:underline">
+              show all
             </button>
+          )}
+        </div>
+        {(Object.keys(LAYER_META) as LayerKey[]).map((key) => {
+          const meta = LAYER_META[key];
+          const on = activeToggles[key];
+          return (
+            <div key={key} className="flex items-center gap-1.5">
+              <button
+                type="button"
+                aria-label={`Isolate ${meta.label}`}
+                onClick={() => setIsolate(isolate === key ? null : key)}
+                className="h-2.5 w-2.5 shrink-0 rounded-full border-2 transition-transform hover:scale-125"
+                style={{
+                  borderColor: meta.color,
+                  background: on ? meta.color : "transparent",
+                  boxShadow: isolate === key ? `0 0 6px ${meta.color}` : undefined,
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setToggles((t) => ({ ...t, [key]: !t[key] }))}
+                className="flex flex-1 items-center gap-1 text-left text-[10px] uppercase tracking-wide"
+              >
+                <span className={on ? "text-ink" : "text-ink-dim"}>{meta.label}</span>
+                <span className="mono ml-auto text-[9px] text-ink-dim">{counts[key]}</span>
+              </button>
+            </div>
           );
         })}
+        <label className="mt-1 flex cursor-pointer items-center gap-2 border-t border-line pt-1.5 text-[10px] uppercase tracking-wide text-ink-dim">
+          <input
+            type="checkbox"
+            checked={autoRotate}
+            onChange={(e) => setAutoRotate(e.target.checked)}
+            className="accent-[var(--color-live)]"
+          />
+          Auto rotate
+        </label>
       </div>
 
-      {/* Module rail, bottom-left */}
-      <div className="hud-window absolute bottom-11 left-4 z-10 hidden flex-col gap-0.5 rounded-lg p-1.5 sm:flex">
-        {MODULES.slice(0, 9).map((m) => (
-          <Link
-            key={m.id}
-            href={m.path}
-            className="rounded-md px-2.5 py-1.5 text-[12px] text-ink-dim transition-colors hover:bg-panel-2 hover:text-ink"
-          >
-            {m.name}
-          </Link>
-        ))}
-      </div>
+      {/* Quick-module rail — dashboard only */}
+      {variant === "dashboard" && (
+        <div className="hud-window absolute bottom-10 left-3 z-10 flex flex-col gap-0.5 rounded-lg p-1">
+          {QUICK_RAIL.map(({ kind, label, Icon }) => (
+            <button
+              key={kind}
+              type="button"
+              onClick={() => setQuickOpen(quickOpen === kind ? null : kind)}
+              className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[11px] transition-colors ${
+                quickOpen === kind ? "bg-panel-2 text-accent" : "text-ink-dim hover:bg-panel-2 hover:text-ink"
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5 shrink-0" />
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
-      {/* Coordinate / zoom readout, bottom-center */}
-      {coords && (
-        <div className="pointer-events-none absolute bottom-11 left-1/2 z-10 -translate-x-1/2 rounded-md border border-line bg-panel-hud px-3 py-1 backdrop-blur">
-          <span className="mono text-[11px] text-ink-dim">
+      {quickOpen && variant === "dashboard" && (
+        <QuickPanel kind={quickOpen} onClose={() => setQuickOpen(null)} />
+      )}
+
+      {coords && viewMode !== "wire" && (
+        <div className="pointer-events-none absolute bottom-10 left-1/2 z-10 -translate-x-1/2 rounded-md border border-line bg-panel-hud px-3 py-1 backdrop-blur">
+          <span className="mono text-[10px] text-ink-dim">
             {coords.lat.toFixed(2)}° {coords.lat >= 0 ? "N" : "S"}, {Math.abs(coords.lon).toFixed(2)}° {coords.lon >= 0 ? "E" : "W"} · zoom {coords.zoom.toFixed(1)}×
           </span>
         </div>
       )}
 
-      {/* Selected item HUD window */}
       {selected && (
-        <div className="hud-window absolute right-4 top-48 z-20 w-[360px] max-w-[calc(100%-2rem)] rounded-lg">
+        <div className="hud-window absolute right-3 top-52 z-20 w-[min(360px,calc(100%-1.5rem))] rounded-lg">
           <div className="flex items-center justify-between border-b border-line px-3 py-2">
-            <div className="flex items-center gap-2">
-              <span className="hud-pulse h-2 w-2 rounded-full bg-live" />
-              <span className="mono text-[11px] uppercase tracking-wide text-ink-dim">{selected.tags[0] ?? "signal"}</span>
-            </div>
-            <button onClick={() => setSelected(null)} className="text-ink-dim hover:text-ink" aria-label="Close">✕</button>
+            <span className="mono text-[10px] uppercase tracking-wide text-ink-dim">{selected.tags[0] ?? "signal"}</span>
+            <button type="button" onClick={() => setSelected(null)} className="text-ink-dim hover:text-ink" aria-label="Close">✕</button>
           </div>
           <div className="p-3">
             <div className="text-[13px] font-medium text-ink">{selected.title}</div>
-            {selected.summary && <p className="mt-1 line-clamp-4 text-[12px] leading-relaxed text-soft">{selected.summary}</p>}
+            {selected.summary && <p className="mt-1 line-clamp-4 text-[12px] text-soft">{selected.summary}</p>}
             <div className="mt-2 flex items-center gap-2">
               <Badge tone="info">{selected.source}</Badge>
               {selected.url && (
                 <a href={selected.url} target="_blank" rel="noreferrer" className="text-[11px] text-accent underline">
-                  Open source →
+                  Source →
                 </a>
               )}
             </div>
@@ -142,14 +288,20 @@ export function GlobeDashboard({
         </div>
       )}
 
-      {/* Bottom live ticker */}
-      <div className="absolute inset-x-0 bottom-0 z-10 flex h-8 items-center gap-3 overflow-hidden border-t border-line bg-body/85 px-3">
+      {/* Bottom ticker */}
+      <div className="absolute inset-x-0 bottom-0 z-10 flex h-9 items-center gap-2 overflow-hidden border-t border-line bg-body/90 px-3 backdrop-blur">
         <Badge tone="live" pulse>Feed</Badge>
-        <div className="relative flex-1 overflow-hidden">
-          <div className="ticker-track whitespace-nowrap text-[11px] text-soft">
-            {ticker.length === 0
-              ? <span>Connecting to live feeds…</span>
-              : [...ticker, ...ticker].map((t, i) => <span key={i}>{t}</span>)}
+        <div className="relative min-w-0 flex-1 overflow-hidden">
+          <div className="ticker-track flex gap-8 whitespace-nowrap text-[11px] text-soft">
+            {ticker.length === 0 ? (
+              <span>Connecting to live feeds…</span>
+            ) : (
+              [...ticker, ...ticker].map((t, i) => (
+                <span key={i} className="inline-flex shrink-0 items-center gap-2">
+                  <span className="text-ink-dim">·</span> {t}
+                </span>
+              ))
+            )}
           </div>
         </div>
       </div>
