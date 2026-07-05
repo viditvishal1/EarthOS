@@ -14,6 +14,8 @@ import "./government";
 import "./patents";
 import "./infrastructure";
 import "./gdelt";
+import "./conflict";
+import "./macro";
 
 export { NEWS_CONNECTOR_IDS, searchGoogleNews } from "./news";
 export { EARTH_CONNECTOR_IDS, fetchWeather } from "./earth";
@@ -26,6 +28,8 @@ export { STARTUP_CONNECTOR_IDS, fetchReadme } from "./startup";
 export { GOVERNMENT_CONNECTOR_IDS, searchDataGov } from "./government";
 export { INFRASTRUCTURE_CONNECTOR_IDS, fetchPlatformStatuses } from "./infrastructure";
 export { GDELT_CONNECTOR_ID } from "./gdelt";
+export { CONFLICT_CONNECTOR_IDS } from "./conflict";
+export { MACRO_CONNECTOR_IDS } from "./macro";
 export {
   connectors,
   connectorStatuses,
@@ -45,9 +49,13 @@ import { STARTUP_CONNECTOR_IDS } from "./startup";
 import { GOVERNMENT_CONNECTOR_IDS } from "./government";
 import { INFRASTRUCTURE_CONNECTOR_IDS } from "./infrastructure";
 import { GDELT_CONNECTOR_ID } from "./gdelt";
+import { CONFLICT_CONNECTOR_IDS } from "./conflict";
+import { MACRO_CONNECTOR_IDS } from "./macro";
 
 export const MODULE_CONNECTORS: Record<string, string[]> = {
   news: [...NEWS_CONNECTOR_IDS, GDELT_CONNECTOR_ID],
+  conflict: CONFLICT_CONNECTOR_IDS,
+  macro: MACRO_CONNECTOR_IDS,
   earth: EARTH_CONNECTOR_IDS,
   cyber: CYBER_CONNECTOR_IDS,
   aviation: AVIATION_CONNECTOR_IDS,

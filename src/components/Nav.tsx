@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Globe2, Newspaper, ShieldAlert, Plane, Ship, Rocket, CandlestickChart,
   GitBranch, Landmark, Server, Building2, Network, Bot, Bookmark, Settings,
-  Radar, FolderOpen,
+  Radar, FolderOpen, Flame, Tv, TrendingUp,
 } from "lucide-react";
 import { MODULES } from "@/lib/modules";
 
@@ -14,6 +14,7 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   maritime: Ship, space: Rocket, markets: CandlestickChart, startup: GitBranch,
   government: Landmark, infrastructure: Server, city: Building2,
   graph: Network, analyst: Bot, investigations: FolderOpen,
+  conflict: Flame, live: Tv, macro: TrendingUp,
 };
 
 export function Nav() {
