@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dbEnabled } from "@/lib/db";
 import { trackApiRequest } from "@/lib/usage/tracker";
+import { isPrincipalError, requirePrivateApi } from "@/lib/auth/api-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,9 @@ async function client() {
   return createClient(url!, process.env.SUPABASE_SERVICE_KEY!, { auth: { persistSession: false } });
 }
 
-export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const auth = requirePrivateApi(req);
+  if (isPrincipalError(auth)) return auth;
   const { id } = await ctx.params;
   await trackApiRequest("/api/investigations/detail");
   const c = await client();
@@ -28,6 +31,8 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
 }
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const auth = requirePrivateApi(req);
+  if (isPrincipalError(auth)) return auth;
   const { id } = await ctx.params;
   const c = await client();
   if (!c) return NextResponse.json({ error: "database unavailable" }, { status: 503 });

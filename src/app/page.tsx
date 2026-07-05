@@ -9,6 +9,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowRight, Radar } from "lucide-react";
 import { MODULES, moduleById } from "@/lib/modules";
 import { computeSituations } from "@/lib/situation";
+import { FreshnessBadge } from "@/components/FreshnessBadge";
+import { FindingsBadge } from "@/components/FindingsBadge";
 import type { Item } from "@/lib/types";
 import { ItemCard, timeAgo } from "@/components/ModuleView";
 import { ReaderPane } from "@/components/ReaderPane";
@@ -28,6 +30,15 @@ export default function SituationRoom() {
   const [pool, setPool] = useState<Item[]>([]);
   const [selected, setSelected] = useState<Item | null>(null);
   const [fetchedAt, setFetchedAt] = useState<string>();
+
+  const [strategicRisk, setStrategicRisk] = useState<{ iso2: string; country: string; score: number; band: string }[]>([]);
+
+  useEffect(() => {
+    fetch("/api/v1/findings?limit=5")
+      .then((r) => r.json())
+      .then((d) => setStrategicRisk(d.strategicRisk ?? []))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     Promise.allSettled([
@@ -93,11 +104,32 @@ export default function SituationRoom() {
         <h1 className="text-xl font-semibold text-ink">
           Situation Room <span className="text-ink-dim">· cross-stream convergence on public data</span>
         </h1>
-        <p className="mt-1 text-xs text-ink-dim">
-          {fetchedAt ? `Feeds updated ${timeAgo(fetchedAt)} · ` : ""}
-          situations rank by corroboration across independent modules, severity, and freshness.
+        <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-dim">
+          <span>
+            {fetchedAt ? `Feeds updated ${timeAgo(fetchedAt)} · ` : ""}
+            situations rank by corroboration across independent modules, severity, and freshness.
+          </span>
+          <FreshnessBadge />
+          <FindingsBadge />
         </p>
       </div>
+
+      {strategicRisk.length > 0 && (
+        <section className="mb-5 rounded-lg border border-line bg-panel p-3">
+          <h2 className="mb-2 text-sm font-medium text-ink">Strategic risk overview (CII v1)</h2>
+          <div className="flex flex-wrap gap-2">
+            {strategicRisk.map((c) => (
+              <Link
+                key={c.iso2}
+                href={`/country/${c.iso2}`}
+                className="rounded-full border border-line px-2.5 py-1 text-xs hover:border-accent hover:text-accent"
+              >
+                {c.country} <span className="mono text-ink-dim">{c.score}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-6">
         {stat("Earthquakes · 24h", stats.quakes24h, "/earth")}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { groundedResearch } from "@/lib/research/grounded";
 import { trackApiRequest } from "@/lib/usage/tracker";
+import { isPrincipalError, requirePrivateApi } from "@/lib/auth/api-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,8 @@ interface EvidenceInput {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = requirePrivateApi(req);
+  if (isPrincipalError(auth)) return auth;
   await trackApiRequest("/api/reports/export");
   const body = await req.json().catch(() => ({}));
   const title = String(body.title ?? "Argus Investigation Report");

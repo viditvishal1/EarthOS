@@ -58,6 +58,15 @@ export interface Item {
   entities: { name: string; type: EntityType }[];
   region?: string;
   contentPolicy: ContentPolicy;
+  /** Optional unified provenance (freshness-v1). */
+  provenance?: {
+    sourceTier?: "official" | "wire" | "community" | "unknown";
+    observedAt?: string;
+    fetchedAt?: string;
+    stale?: boolean;
+    coverageState?: "full" | "partial" | "unavailable";
+    methodologyVersion?: string;
+  };
   extra?: Record<string, unknown>;
 }
 

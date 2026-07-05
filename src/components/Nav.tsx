@@ -8,6 +8,9 @@ import {
   Radar, FolderOpen, Flame, Tv, TrendingUp, LayoutDashboard,
 } from "lucide-react";
 import { MODULES } from "@/lib/modules";
+import { VariantSwitcher } from "@/components/VariantSwitcher";
+import { FreshnessBadge } from "@/components/FreshnessBadge";
+import { FindingsBadge } from "@/components/FindingsBadge";
 
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   earth: Globe2, news: Newspaper, cyber: ShieldAlert, aviation: Plane,
@@ -39,12 +42,17 @@ export function Nav() {
 
   return (
     <aside className="sticky top-0 flex h-screen w-12 shrink-0 flex-col border-r border-line bg-panel px-1.5 py-3 lg:w-56 lg:px-3">
-      <Link href="/" className="mb-4 flex items-center gap-2 px-2">
+      <Link href="/" className="mb-2 flex items-center gap-2 px-2">
         <Radar className="h-5 w-5 text-accent" />
         <span className="mono hidden text-sm font-semibold tracking-widest text-ink lg:inline">
           ARG<span className="text-accent">US</span>
         </span>
       </Link>
+      <div className="mb-2 hidden flex-wrap gap-1 px-2 lg:flex">
+        <FreshnessBadge />
+        <FindingsBadge />
+      </div>
+      <VariantSwitcher />
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto">
         {MODULES.map((m) => link(m.path, m.name, ICONS[m.id] ?? Globe2))}
       </nav>

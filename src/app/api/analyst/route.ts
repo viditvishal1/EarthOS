@@ -15,12 +15,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "rate limit exceeded" }, { status: 429 });
   }
 
-  if (!aiEnabled()) {
-    return NextResponse.json(
-      { error: "AI Analyst is not configured. Add GEMINI_API_KEY to .env.local and restart." },
-      { status: 503 },
-    );
-  }
   const body = await req.json().catch(() => ({}));
   const question = String(body.question ?? "").trim();
   if (!question) return NextResponse.json({ error: "question required" }, { status: 400 });
@@ -35,12 +29,14 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { answer, sources: cited } = await askAnalyst(question, items);
+    const { answer, sources: cited, provider, model } = await askAnalyst(question, items);
     return NextResponse.json({
       answer,
       sources: cited,
       searchMeta: sources,
-      model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+      provider,
+      model,
+      aiConfigured: aiEnabled(),
     });
   } catch (err) {
     return NextResponse.json(

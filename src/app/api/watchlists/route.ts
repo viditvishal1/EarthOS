@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dbEnabled } from "@/lib/db";
 import { trackApiRequest } from "@/lib/usage/tracker";
+import { isPrincipalError, requirePrivateApi } from "@/lib/auth/api-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,9 @@ async function client() {
   return createClient(url!, process.env.SUPABASE_SERVICE_KEY!, { auth: { persistSession: false } });
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = requirePrivateApi(req);
+  if (isPrincipalError(auth)) return auth;
   await trackApiRequest("/api/watchlists");
   const c = await client();
   if (!c) return NextResponse.json({ watchlists: [], note: "Supabase service key required" });
@@ -20,6 +23,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = requirePrivateApi(req);
+  if (isPrincipalError(auth)) return auth;
   await trackApiRequest("/api/watchlists");
   const c = await client();
   if (!c) return NextResponse.json({ error: "database unavailable" }, { status: 503 });

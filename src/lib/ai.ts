@@ -1,56 +1,10 @@
-// AI layer — Gemini-powered, retrieval-grounded. Answers are generated only
-// from items retrieved out of the connector caches and every response carries
-// numbered citations back to those items. Outputs are cached by content hash
-// so the same cluster is never summarized twice (PRD §13 cost control).
+// AI layer — local-first provider chain (Ollama → LM Studio → Gemini → extractive fallback).
 
-import { createHash } from "crypto";
 import type { Item } from "@/lib/types";
 import { fetchWithTimeout } from "@/lib/connectors/framework";
+import { aiEnabled, generateWithProviderChain, listAiProviders } from "@/lib/ai/providers";
 
-const MODEL = () => process.env.GEMINI_MODEL || "gemini-2.5-flash";
-
-type AiCache = Map<string, { at: number; text: string }>;
-const g = globalThis as unknown as { __earthosAi?: AiCache };
-const cache: AiCache = (g.__earthosAi ??= new Map());
-const CACHE_TTL_MS = 30 * 60 * 1000;
-
-export function aiEnabled(): boolean {
-  return Boolean(process.env.GEMINI_API_KEY?.trim());
-}
-
-async function gemini(prompt: string, system: string): Promise<string> {
-  const key = process.env.GEMINI_API_KEY?.trim();
-  if (!key) throw new Error("GEMINI_API_KEY not configured");
-
-  const hash = createHash("sha256").update(system + "\0" + prompt).digest("hex");
-  const hit = cache.get(hash);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.text;
-
-  const res = await fetchWithTimeout(
-    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL()}:generateContent`,
-    {
-      method: "POST",
-      timeoutMs: 45000,
-      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 1500 },
-      }),
-    },
-  );
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Gemini API ${res.status}: ${body.slice(0, 300)}`);
-  }
-  const data = await res.json();
-  const text: string =
-    data.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ??
-    "";
-  if (!text) throw new Error("Gemini returned an empty response");
-  cache.set(hash, { at: Date.now(), text });
-  return text;
-}
+export { aiEnabled, listAiProviders };
 
 function contextBlock(items: Item[]): string {
   return items
@@ -62,40 +16,49 @@ function contextBlock(items: Item[]): string {
     .join("\n");
 }
 
-const ANALYST_SYSTEM = `You are the EarthOS AI Analyst. You answer questions using ONLY the numbered source items provided. Rules:
+const ANALYST_SYSTEM = `You are the Argus AI Analyst. Answer using ONLY the numbered source items provided. Rules:
 - Cite sources inline as [n] after every factual claim.
-- If the sources don't contain the answer, say so plainly — never invent facts.
-- If you offer any forward-looking interpretation, prefix that sentence with "AI hypothesis (not a verified forecast):".
-- Be concise and analytical. Use short paragraphs or bullets.`;
+- If sources are insufficient, say so — never invent facts.
+- Prefix speculation with "AI hypothesis (not a verified forecast):".
+- Be concise.`;
+
+const BRIEFING_SYSTEM = `Write a tight situational briefing (max 180 words) from the items. Cite as [n]. No preamble.`;
 
 export async function askAnalyst(
   question: string,
   items: Item[],
-): Promise<{ answer: string; sources: Item[] }> {
+): Promise<{ answer: string; sources: Item[]; provider: string; model: string }> {
   const sources = items.slice(0, 40);
-  const answer = await gemini(
-    `Source items:\n${contextBlock(sources)}\n\nQuestion: ${question}`,
+  const result = await generateWithProviderChain(
     ANALYST_SYSTEM,
+    `Source items:\n${contextBlock(sources)}\n\nQuestion: ${question}`,
   );
-  return { answer, sources };
+  return {
+    answer: result.text,
+    sources,
+    provider: result.provider,
+    model: result.model,
+  };
 }
 
-const BRIEFING_SYSTEM = `You are EarthOS's briefing writer. Given a set of intelligence items from multiple domains, write a tight situational briefing (max 180 words): what matters most right now and why. Cite items inline as [n]. No preamble, no headers. Any speculation must be prefixed "AI hypothesis (not a verified forecast):".`;
-
-export async function writeBriefing(items: Item[]): Promise<string> {
-  return gemini(`Items:\n${contextBlock(items.slice(0, 35))}`, BRIEFING_SYSTEM);
+export async function writeBriefing(items: Item[]): Promise<{ text: string; provider: string; model: string }> {
+  const result = await generateWithProviderChain(
+    BRIEFING_SYSTEM,
+    `Items:\n${contextBlock(items.slice(0, 35))}`,
+  );
+  return { text: result.text, provider: result.provider, model: result.model };
 }
 
 export async function pingGemini(): Promise<{ model: string; latencyMs: number }> {
   const key = process.env.GEMINI_API_KEY?.trim();
   if (!key) throw new Error("GEMINI_API_KEY not configured");
-  const model = MODEL();
+  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
   const started = Date.now();
   const res = await fetchWithTimeout(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
     {
       method: "POST",
-      timeoutMs: 15000,
+      timeoutMs: 15_000,
       headers: { "Content-Type": "application/json", "x-goog-api-key": key },
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: "Reply with exactly: ok" }] }],
@@ -107,9 +70,5 @@ export async function pingGemini(): Promise<{ model: string; latencyMs: number }
     const body = await res.text().catch(() => "");
     throw new Error(`Gemini API ${res.status}: ${body.slice(0, 200)}`);
   }
-  const data = await res.json();
-  const textOut: string =
-    data.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
-  if (!textOut) throw new Error("Gemini returned an empty response");
   return { model, latencyMs: Date.now() - started };
 }

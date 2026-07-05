@@ -37,13 +37,15 @@ describe("generateMarketInsight", () => {
 });
 
 describe("yahoo quote (integration)", () => {
-  it("fetches AAPL from Yahoo", async () => {
+  const run = process.env.RUN_INTEGRATION_TESTS === "1" ? it : it.skip;
+
+  run("fetches AAPL from Yahoo", async () => {
     const q = await fetchYahooQuote("AAPL");
     expect(q).not.toBeNull();
     expect(q!.price).toBeGreaterThan(0);
   }, 15000);
 
-  it("fetchEquityQuote prefers Yahoo", async () => {
+  run("fetchEquityQuote prefers Yahoo", async () => {
     const q = await fetchEquityQuote("MSFT");
     expect(q).not.toBeNull();
     expect(q!.provider).toBe("Yahoo Finance");
