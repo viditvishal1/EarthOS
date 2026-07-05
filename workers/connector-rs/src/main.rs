@@ -74,8 +74,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app_live = app_url.clone();
     let secret_live = cron_secret.clone();
     tokio::spawn(async move {
+        let mut consecutive_failures: u32 = 0;
+        const MAX_BACKOFF_SECS: u64 = 600;
+
         loop {
-            if !secret_live.is_empty() {
+            let sleep_secs = if consecutive_failures == 0 {
+                live_interval_secs
+            } else {
+                (live_interval_secs * consecutive_failures as u64).min(MAX_BACKOFF_SECS)
+            };
+
+            if secret_live.is_empty() {
+                eprintln!("CRON_SECRET not set — skipping live seed");
+            } else {
                 let url = format!("{app_live}/api/cron/live");
                 match client_live
                     .get(&url)
@@ -86,14 +97,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Ok(res) => {
                         let status = res.status();
                         let body = res.text().await.unwrap_or_default();
-                        println!("live seed → HTTP {status} {body}");
+                        // Log status + truncated body — never log Authorization header
+                        let preview: String = body.chars().take(200).collect();
+                        if status.is_success() {
+                            consecutive_failures = 0;
+                            println!("live seed → HTTP {status} {preview}");
+                        } else if status.as_u16() == 409 {
+                            consecutive_failures = 0;
+                            println!("live seed → HTTP 409 already running (ok)");
+                        } else {
+                            consecutive_failures = consecutive_failures.saturating_add(1);
+                            eprintln!(
+                                "live seed → HTTP {status} (failures={consecutive_failures}) {preview}"
+                            );
+                        }
                     }
-                    Err(e) => eprintln!("live seed error: {e}"),
+                    Err(e) => {
+                        consecutive_failures = consecutive_failures.saturating_add(1);
+                        eprintln!("live seed error (failures={consecutive_failures}): {e}");
+                    }
                 }
-            } else {
-                eprintln!("CRON_SECRET not set — skipping live seed");
             }
-            tokio::time::sleep(Duration::from_secs(live_interval_secs)).await;
+
+            tokio::time::sleep(Duration::from_secs(sleep_secs)).await;
         }
     });
 

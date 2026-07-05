@@ -3,6 +3,8 @@
 import { dbEnabled } from "@/lib/db";
 import { getFeatureFlagsFromDb } from "@/lib/db/platform";
 
+import { redisConfigured } from "@/lib/cache/redis-config";
+
 const ENV_PREFIX = "EARTHOS_FLAG_";
 
 const DEFAULTS: Record<string, boolean> = {
@@ -53,7 +55,7 @@ export async function loadFeatureFlags(): Promise<Record<string, boolean>> {
   if (process.env.CLOUDFLARE_R2_BUCKET && process.env.CLOUDFLARE_R2_ACCESS_KEY_ID) {
     merged.r2_archive = merged.r2_archive || Boolean(process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY);
   }
-  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  if (redisConfigured()) {
     merged.redis_cache = true;
   }
 

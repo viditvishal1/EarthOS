@@ -1,32 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifyCronBearer } from "@/lib/auth/cron-secret";
 import { runScheduledIngestion } from "@/lib/ingest/scheduler";
-import { seedLiveDomains } from "@/lib/live/seed-cron";
+import { legacyCountsFromDomains, seedLiveDomains } from "@/lib/live/seed-cron";
 import { trackApiRequest } from "@/lib/usage/tracker";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-function authorized(req: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET ?? (process.env.ARGUS_ADMIN_SECRET ?? process.env.EARTHOS_ADMIN_SECRET);
-  if (!secret) return process.env.NODE_ENV === "development";
-  const auth = req.headers.get("authorization");
-  return auth === `Bearer ${secret}` || req.headers.get("x-vercel-cron") === "1";
-}
-
 export async function GET(req: NextRequest) {
   await trackApiRequest("/api/cron/ingest");
-  if (!authorized(req)) {
+  if (!verifyCronBearer(req.headers.get("authorization"))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const [result, live] = await Promise.all([
+  const [result, liveSeed] = await Promise.all([
     runScheduledIngestion({ maxSources: 15 }),
     seedLiveDomains(),
   ]);
   return NextResponse.json({
     ok: true,
     ...result,
-    live,
+    live: {
+      ...legacyCountsFromDomains(liveSeed.domains),
+      domains: liveSeed.domains,
+      durationMs: liveSeed.durationMs,
+    },
     fetchedAt: new Date().toISOString(),
   });
 }

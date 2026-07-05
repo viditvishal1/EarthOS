@@ -4,6 +4,7 @@ import { dbEnabled } from "@/lib/db";
 import { getUsageSummary, recordUsageMetric } from "@/lib/db/platform";
 import { quotaLevelFromUsage, SUPABASE_RESERVE_MB, SUPABASE_TARGET_MB } from "@/lib/storage/retention";
 import { r2Enabled } from "@/lib/storage/r2";
+import { redisConfigured } from "@/lib/cache/redis";
 import { isFeatureEnabled } from "@/lib/platform/feature-flags";
 import type { UsageSnapshot } from "@/lib/platform/types";
 
@@ -60,7 +61,7 @@ export async function getUsageSnapshot(): Promise<UsageSnapshot> {
     connectorRequestsToday,
     apiRequestsToday,
     r2Enabled: r2Enabled() && (await isFeatureEnabled("r2_archive")),
-    redisEnabled: await isFeatureEnabled("redis_cache"),
+    redisEnabled: redisConfigured(),
     supabaseUsagePct: usagePct,
     quotaLevel: quotaLevelFromUsage(usagePct),
     fetchedAt: new Date().toISOString(),

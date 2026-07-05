@@ -30,3 +30,17 @@ export async function readAllSeedMeta(domains: string[]): Promise<Record<string,
   );
   return out;
 }
+
+export interface SeedAttemptMeta {
+  attemptedAt: string;
+  ok: boolean;
+  durationMs?: number;
+}
+
+export async function writeSeedAttempt(meta: SeedAttemptMeta): Promise<void> {
+  await cacheSet("seed-meta:live-seed:last-attempt", meta, 86_400).catch(() => {});
+}
+
+export async function readSeedAttempt(): Promise<SeedAttemptMeta | null> {
+  return cacheGet<SeedAttemptMeta>("seed-meta:live-seed:last-attempt").catch(() => null);
+}

@@ -1,28 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchFlights, REGIONS } from "@/lib/connectors";
-import { readLive } from "@/lib/live/store";
+import { LIVE_SOFT_TTL } from "@/lib/live/config";
+import { readLive, readLiveCached } from "@/lib/live/store";
 import type { Item } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const TTL_SECONDS = 75;
+const SOURCE = "OpenSky/adsb.lol/Wingbits";
 
 async function readFlightsRegion(region: string) {
   return readLive<Item[]>(
     `flights:${region}`,
     async () => {
-      // Request path: fast hub probes only — never block on full global grid.
       if (region === "global") {
         try {
           return await fetchFlights("global", "fast");
         } catch {
-          /* try europe cache as last resort below */
+          return [];
         }
       }
       return fetchFlights(region, "fast");
     },
-    { ttlSeconds: TTL_SECONDS, source: "OpenSky/adsb.lol/Wingbits", fallback: [], coldTimeoutMs: 12_000 },
+    {
+      ttlSeconds: LIVE_SOFT_TTL.flights,
+      source: SOURCE,
+      fallback: [],
+      coldTimeoutMs: 12_000,
+      refreshWhenStale: true,
+      seedEmpty: false,
+      allowColdFetch: true,
+    },
   );
 }
 
@@ -34,14 +42,12 @@ export async function GET(req: NextRequest) {
 
   let result = await readFlightsRegion(region);
 
-  // Global cold miss → serve last-known europe/usa rather than empty.
   if (region === "global" && result.data.length === 0) {
     for (const fallback of ["europe", "usa", "india"] as const) {
-      const alt = await readLive<Item[]>(`flights:${fallback}`, async () => [], {
-        ttlSeconds: TTL_SECONDS,
-        source: "OpenSky/adsb.lol/Wingbits",
+      const alt = await readLiveCached<Item[]>(`flights:${fallback}`, {
+        ttlSeconds: LIVE_SOFT_TTL.flights,
+        source: SOURCE,
         fallback: [],
-        coldTimeoutMs: 1,
       });
       if (alt.data.length > 0) {
         result = { ...alt, source: `${alt.source} (fallback:${fallback})`, cold: result.cold };
@@ -57,6 +63,7 @@ export async function GET(req: NextRequest) {
     cold: result.cold,
     updatedAt: result.updatedAt,
     ageSeconds: result.ageSeconds == null ? null : Math.round(result.ageSeconds),
+    source: result.source,
     fetchedAt: new Date().toISOString(),
   });
 }

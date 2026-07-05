@@ -21,8 +21,10 @@ export interface RateLimitConfig {
 }
 
 async function redisIncr(key: string, windowMs: number): Promise<{ count: number; ttl: number } | null> {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  const { resolveRedisCredentials } = await import("@/lib/cache/redis-config");
+  const creds = resolveRedisCredentials();
+  const url = creds.url;
+  const token = creds.token;
   if (!url || !token) return null;
 
   const redisKey = `earthos:rl:${key}`;
