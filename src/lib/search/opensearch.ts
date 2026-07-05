@@ -23,19 +23,48 @@ async function serviceClient() {
   return createClient(url, process.env.SUPABASE_SERVICE_KEY, { auth: { persistSession: false } });
 }
 
-async function searchOpenSearch(q: string, limit: number): Promise<SearchHit[]> {
-  const base = process.env.OPENSEARCH_URL;
-  if (!base) return [];
+function openSearchAuthHeaders(): Record<string, string> {
   const user = process.env.OPENSEARCH_USERNAME;
   const pass = process.env.OPENSEARCH_PASSWORD;
   const auth = user && pass ? `Basic ${Buffer.from(`${user}:${pass}`).toString("base64")}` : undefined;
+  return auth ? { Authorization: auth } : {};
+}
+
+/** Index or update a single document in OpenSearch (ingest pipeline). */
+export async function indexItemToOpenSearch(item: Item): Promise<boolean> {
+  const base = process.env.OPENSEARCH_URL;
+  if (!base) return false;
+
+  const doc = {
+    module: item.module,
+    title: item.title,
+    summary: item.summary ?? "",
+    body: item.body?.slice(0, 8000) ?? "",
+    url: item.url ?? "",
+    published_at: item.timestamp,
+    ingested_at: new Date().toISOString(),
+    tags: item.tags,
+    source_id: item.connectorId,
+  };
+
+  const res = await fetch(
+    `${base.replace(/\/$/, "")}/earthos/_doc/${encodeURIComponent(item.id)}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...openSearchAuthHeaders() },
+      body: JSON.stringify(doc),
+    },
+  );
+  return res.ok;
+}
+
+async function searchOpenSearch(q: string, limit: number): Promise<SearchHit[]> {
+  const base = process.env.OPENSEARCH_URL;
+  if (!base) return [];
 
   const res = await fetch(`${base.replace(/\/$/, "")}/earthos/_search`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(auth ? { Authorization: auth } : {}),
-    },
+    headers: { "Content-Type": "application/json", ...openSearchAuthHeaders() },
     body: JSON.stringify({
       size: limit,
       query: { multi_match: { query: q, fields: ["title^3", "summary^2", "body"] } },

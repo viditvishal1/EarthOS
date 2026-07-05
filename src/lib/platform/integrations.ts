@@ -26,6 +26,14 @@ export function isAishubConfigured(): boolean {
   return Boolean(process.env.AISHUB_API_KEY?.trim());
 }
 
+export function isAisStreamConfigured(): boolean {
+  return Boolean(process.env.AISSTREAM_API_KEY?.trim());
+}
+
+export function isMaritimeAisConfigured(): boolean {
+  return isAishubConfigured() || isAisStreamConfigured();
+}
+
 export function isTomtomConfigured(): boolean {
   return Boolean(process.env.TOMTOM_API_KEY?.trim());
 }
@@ -55,6 +63,8 @@ function shipsState(
 /** Server-side snapshot for status/bootstrap — never exposes secrets. */
 export async function buildIntegrationsSnapshot(): Promise<IntegrationStatus[]> {
   const aishubConfigured = isAishubConfigured();
+  const aisstreamConfigured = isAisStreamConfigured();
+  const maritimeConfigured = isMaritimeAisConfigured();
   const tomtomConfigured = isTomtomConfigured();
   const mapplsConfigured = isMapplsConfigured();
   const geminiConfigured = isGeminiConfigured();
@@ -64,8 +74,9 @@ export async function buildIntegrationsSnapshot(): Promise<IntegrationStatus[]> 
   let shipsCold = true;
   let shipsUpdatedAt: string | null = null;
   let shipsAge: number | null = null;
+  let shipsSource = "AISHub";
 
-  if (aishubConfigured) {
+  if (maritimeConfigured) {
     const ships = await readLiveCached<Item[]>("ships:global", {
       ttlSeconds: LIVE_SOFT_TTL.ships,
       source: "AISHub",
@@ -76,6 +87,7 @@ export async function buildIntegrationsSnapshot(): Promise<IntegrationStatus[]> 
     shipsCold = ships.cold;
     shipsUpdatedAt = ships.updatedAt;
     shipsAge = ships.ageSeconds == null ? null : Math.round(ships.ageSeconds);
+    shipsSource = ships.source;
   }
 
   return [
@@ -83,11 +95,24 @@ export async function buildIntegrationsSnapshot(): Promise<IntegrationStatus[]> 
       id: "aishub",
       label: "AISHub maritime AIS",
       configured: aishubConfigured,
-      state: shipsState(aishubConfigured, shipsCount, shipsStale, shipsCold),
+      state: shipsState(maritimeConfigured, shipsCount, shipsStale, shipsCold),
       liveCount: shipsCount,
       updatedAt: shipsUpdatedAt,
       ageSeconds: shipsAge,
       coverage: "Multi-region bbox — Channel, Mediterranean, US East, Indian Ocean",
+      uiPath: "/maritime",
+    },
+    {
+      id: "aisstream",
+      label: "AISStream global AIS",
+      configured: aisstreamConfigured,
+      state: aisstreamConfigured
+        ? shipsState(maritimeConfigured, shipsCount, shipsStale, shipsCold)
+        : "key-required",
+      liveCount: aisstreamConfigured ? shipsCount : undefined,
+      updatedAt: aisstreamConfigured ? shipsUpdatedAt : undefined,
+      ageSeconds: aisstreamConfigured ? shipsAge : undefined,
+      coverage: `WebSocket fallback · active source: ${shipsSource}`,
       uiPath: "/maritime",
     },
     {

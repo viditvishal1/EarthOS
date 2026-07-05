@@ -30,6 +30,7 @@ Run in Supabase SQL Editor (or `psql`) **before** enabling auth-dependent featur
 6. `006_provider_governance.sql`
 7. `007_alerts_search_ops.sql`
 8. **`008_user_auth_rls.sql`** — profiles, owner-scoped RLS (Phase 2)
+9. **`009_org_members.sql`** — org membership, saved-search tenancy (Phase 10)
 
 ### Backup before migrate
 

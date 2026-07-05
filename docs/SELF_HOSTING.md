@@ -45,6 +45,7 @@ Apply in order:
 6. `006_provider_governance.sql`
 7. `007_alerts_search_ops.sql`
 8. `008_user_auth_rls.sql` — Supabase Auth profiles + owner-scoped RLS
+9. `009_org_members.sql` — org membership + saved-search tenancy
 
 Verify: `node scripts/preflight.mjs`
 

@@ -47,10 +47,10 @@
 
 ## Future enhancements (post-100% foundation)
 
-- Supabase Auth + org-scoped RLS for end users
-- OpenSearch auto-index pipeline on every ingest
-- AISStream global AIS + map layer
+- [x] Supabase Auth + owner-scoped RLS (Phase 2, migration 008)
+- [x] OpenSearch auto-index pipeline on every ingest (Phase 9)
+- [x] AISStream global AIS + map layer fallback (Phase 9)
+- [x] Org-scoped saved searches (Phase 10, migration 009)
 - ClickHouse production deployment + position writers
 - Historical playback UI
 - Real-time investigation collaboration
-- Advanced cross-domain alert rule builder UI

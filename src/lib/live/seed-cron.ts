@@ -1,4 +1,5 @@
 import { runConnector, fetchFlights } from "@/lib/connectors";
+import { fetchMaritimeVessels } from "@/lib/connectors/maritime";
 import { fetchIss } from "@/lib/connectors/space";
 import { readLiveCached, seedLiveSafe } from "@/lib/live/store";
 import { seedModuleLive } from "@/lib/live/module-cache";
@@ -117,26 +118,29 @@ async function seedFlightsRegion(region: string): Promise<DomainSeedResult> {
 async function seedShips(): Promise<DomainSeedResult> {
   const domain = "ships:global";
   const started = Date.now();
-  const source = "AISHub";
   try {
-    if (!process.env.AISHUB_API_KEY) {
+    const hasHub = Boolean(process.env.AISHUB_API_KEY?.trim());
+    const hasStream = Boolean(process.env.AISSTREAM_API_KEY?.trim());
+    if (!hasHub && !hasStream) {
       const cached = await readLiveCached<Item[]>(domain, {
         ttlSeconds: LIVE_SOFT_TTL.ships,
-        source,
+        source: "AISHub",
         fallback: [],
       });
       return {
         domain,
         status: cached.data.length > 0 ? "preserved" : "skipped",
         count: cached.data.length,
-        source,
+        source: cached.source,
         durationMs: Date.now() - started,
         errorCode: "missing_credentials",
-        errorMessage: "AISHUB_API_KEY not configured",
+        errorMessage: "AISHUB_API_KEY or AISSTREAM_API_KEY required",
       };
     }
-    const items = (await runConnector("aishub_vessels")).filter((i) => typeof i.lat === "number");
-    if (items.length === 0) {
+
+    const { items, source } = await fetchMaritimeVessels();
+    const positioned = items.filter((i) => typeof i.lat === "number");
+    if (positioned.length === 0) {
       const cached = await readLiveCached<Item[]>(domain, {
         ttlSeconds: LIVE_SOFT_TTL.ships,
         source,
@@ -150,7 +154,7 @@ async function seedShips(): Promise<DomainSeedResult> {
           source: cached.source,
           durationMs: Date.now() - started,
           errorCode: "empty_fetch",
-          errorMessage: "AISHub returned zero vessels; kept last-known-good",
+          errorMessage: "No vessels returned; kept last-known-good",
         };
       }
       return {
@@ -163,7 +167,7 @@ async function seedShips(): Promise<DomainSeedResult> {
         errorMessage: "No vessels returned",
       };
     }
-    const write = await seedLiveSafe(domain, items, source);
+    const write = await seedLiveSafe(domain, positioned, source);
     if (!write.ok) {
       const cached = await readLiveCached<Item[]>(domain, {
         ttlSeconds: LIVE_SOFT_TTL.ships,
@@ -174,19 +178,19 @@ async function seedShips(): Promise<DomainSeedResult> {
         domain,
         status: cached.data.length > 0 ? "preserved" : "error",
         count: cached.data.length,
-        source,
+        source: cached.source,
         durationMs: Date.now() - started,
         errorCode: "redis_write_failed",
         errorMessage: write.error ?? "Redis write failed",
       };
     }
-    await writeSeedMeta(domain, items.length, source);
-    return { domain, status: "ok", count: items.length, source, durationMs: Date.now() - started };
+    await writeSeedMeta(domain, positioned.length, source);
+    return { domain, status: "ok", count: positioned.length, source, durationMs: Date.now() - started };
   } catch (err) {
     const { code, message } = sanitizeError(err);
     const cached = await readLiveCached<Item[]>(domain, {
       ttlSeconds: LIVE_SOFT_TTL.ships,
-      source,
+      source: "AISHub",
       fallback: [],
     });
     return {

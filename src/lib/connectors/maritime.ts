@@ -4,6 +4,7 @@
 
 import type { Item } from "@/lib/types";
 import { SHIP_SEED_BBOXES } from "@/lib/live/config";
+import { collectAisStreamVessels } from "@/lib/live/aisstream";
 import { fetchWithTimeout, registerConnector } from "./framework";
 import { searchGoogleNews } from "./news";
 
@@ -75,6 +76,21 @@ export async function fetchAisHubVessels(): Promise<Item[]> {
   return [...byId.values()].slice(0, 600);
 }
 
+export async function fetchAisStreamVessels(): Promise<Item[]> {
+  return collectAisStreamVessels({ timeoutMs: 18_000, maxVessels: 600 });
+}
+
+/** AISHub preferred; AISStream fills gaps when keyed. */
+export async function fetchMaritimeVessels(): Promise<{ items: Item[]; source: string }> {
+  const hub = await fetchAisHubVessels();
+  if (hub.length > 0) return { items: hub, source: "AISHub" };
+
+  const stream = await fetchAisStreamVessels();
+  if (stream.length > 0) return { items: stream, source: "AISStream" };
+
+  return { items: [], source: "none" };
+}
+
 registerConnector(
   {
     id: "aishub_vessels",
@@ -87,6 +103,20 @@ registerConnector(
     requiresKey: "AISHUB_API_KEY",
   },
   async () => fetchAisHubVessels(),
+);
+
+registerConnector(
+  {
+    id: "aisstream_vessels",
+    module: "maritime",
+    source: "AISStream",
+    sourceUrl: "https://aisstream.io",
+    scheduleSeconds: 120,
+    contentPolicy: "metadata_only",
+    entityTypes: ["vessel"],
+    requiresKey: "AISSTREAM_API_KEY",
+  },
+  async () => fetchAisStreamVessels(),
 );
 
 registerConnector(
@@ -111,4 +141,4 @@ registerConnector(
   },
 );
 
-export const MARITIME_CONNECTOR_IDS = ["aishub_vessels", "maritime_news"];
+export const MARITIME_CONNECTOR_IDS = ["aishub_vessels", "aisstream_vessels", "maritime_news"];

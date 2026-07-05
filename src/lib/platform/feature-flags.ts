@@ -58,6 +58,9 @@ export async function loadFeatureFlags(): Promise<Record<string, boolean>> {
   if (redisConfigured()) {
     merged.redis_cache = true;
   }
+  if (process.env.OPENSEARCH_URL?.trim()) {
+    merged.opensearch = merged.opensearch || true;
+  }
 
   cache.at = Date.now();
   cache.flags = merged;

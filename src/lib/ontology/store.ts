@@ -3,6 +3,8 @@
 import { dbEnabled } from "@/lib/db";
 import type { Item } from "@/lib/types";
 import { entityId } from "@/lib/graph";
+import { isFeatureEnabled } from "@/lib/platform/feature-flags";
+import { indexItemToOpenSearch } from "@/lib/search/opensearch";
 
 async function serviceClient() {
   if (!dbEnabled() || !process.env.SUPABASE_SERVICE_KEY) return null;
@@ -79,6 +81,10 @@ export async function indexItemForSearch(item: Item): Promise<void> {
     tags: item.tags,
     entity_ids: item.entities.map((e) => entityId(e.name, e.type)),
   }, { onConflict: "id" });
+
+  if (await isFeatureEnabled("opensearch")) {
+    await indexItemToOpenSearch(item).catch(() => {});
+  }
 }
 
 export async function syncItemOntology(item: Item): Promise<void> {
