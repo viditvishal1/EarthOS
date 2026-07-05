@@ -9,6 +9,7 @@ export const DEFAULT_INTELLIGENCE_LAYOUT: DashboardLayout = {
     { id: "p-timeline", panelKey: "event-timeline", x: 0, y: 8, w: 4, h: 5 },
     { id: "p-wire", panelKey: "wire-headlines", x: 4, y: 8, w: 4, h: 4 },
     { id: "p-markets", panelKey: "markets-snapshot", x: 8, y: 8, w: 4, h: 4 },
+    { id: "p-monitors", panelKey: "my-monitors", x: 0, y: 13, w: 4, h: 4 },
     { id: "p-cameras", panelKey: "cameras", x: 4, y: 12, w: 4, h: 4 },
   ],
 };

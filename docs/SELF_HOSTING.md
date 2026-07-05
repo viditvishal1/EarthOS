@@ -41,9 +41,22 @@ Apply in order:
 2. `002_ontology_search_ops.sql`
 3. `003_secure_base_rls.sql`
 4. `004_dashboard_panels.sql`
-5. `006_provider_governance.sql`
+5. `005_observations_tracks.sql`
+6. `006_provider_governance.sql`
+7. `007_alerts_search_ops.sql`
 
 Verify: `node scripts/preflight.mjs`
+
+## Backup
+
+```bash
+DATABASE_URL=postgres://... node scripts/backup-db.mjs
+```
+
+## Metrics / SLOs
+
+- Prometheus: `GET /api/v1/metrics`
+- Provider freshness targets: `src/lib/observability/slo.ts`
 
 ## Warm live cache
 

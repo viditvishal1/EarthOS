@@ -10,6 +10,7 @@ import {
 } from "@/lib/live/seed-cron";
 import { writeSeedAttempt } from "@/lib/live/seed-meta";
 import { trackApiRequest } from "@/lib/usage/tracker";
+import { incrementCounter, observeDuration } from "@/lib/observability/metrics";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -105,8 +106,13 @@ export async function GET(req: NextRequest) {
     };
 
     if (isProductionRuntime() && result.redisWriteFailures > 0) {
+      observeDuration("cron_live_seed", Date.now() - runStarted);
+      incrementCounter("cron_live_runs", { status: "error" });
       return noCacheJson(body, { status: 503 });
     }
+
+    observeDuration("cron_live_seed", Date.now() - runStarted);
+    incrementCounter("cron_live_runs", { status: ok ? "ok" : "partial" });
 
     return noCacheJson(body);
   } finally {

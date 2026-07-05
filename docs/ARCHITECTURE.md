@@ -1,4 +1,4 @@
-# Argus Architecture (World Monitor transformation — Phase 0–3, 4–5)
+# Argus Architecture (World Monitor transformation — Phase 0–8)
 
 Argus adopts World Monitor **patterns** (panel registry, map layer registry, provider gateway, seed/read cache) without copying AGPL code.
 
@@ -38,8 +38,13 @@ Provider (public API) → connector fetch → validate → normalize Item
 - `GET /api/v1/satellites` — CelesTrak TLE catalog + optional SGP4 positions
 - `GET /api/v1/satellites/:norad/passes` — local pass prediction from cached TLE
 - `GET /api/v1/cameras` — agency CCTV snapshots (bbox/provider filters, allowlisted URLs)
+- `GET /api/v1/markets/instruments` — instrument registry (Stooq EOD default)
+- `GET /api/v1/markets/quotes` — delayed quotes + macro context
+- `GET /api/v1/alerts` — recent alert events + active rules
+- `GET /api/v1/alerts/rules` — alert rule CRUD
+- `GET /api/v1/metrics` — Prometheus counters for self-host SLOs
 - `GET /api/bootstrap` — client hydration bundle
 
 ## Phased roadmap
 
-See blueprint package `Argus_WorldMonitor_Blueprint.md` for Phases 6–8 (markets, auth/alerts, hardening).
+See blueprint package `Argus_WorldMonitor_Blueprint.md` for post-Phase-8 enhancements (AISStream global, full auth tenancy).

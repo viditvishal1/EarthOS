@@ -3,8 +3,6 @@ import { fetchWithTimeout } from "@/lib/connectors/framework";
 
 export const dynamic = "force-dynamic";
 
-const YF_HEADERS = { "User-Agent": "Mozilla/5.0 (Argus open-source dashboard)" };
-
 export async function GET(req: NextRequest) {
   const kind = req.nextUrl.searchParams.get("kind") ?? "crypto";
   const id = req.nextUrl.searchParams.get("id");
@@ -48,28 +46,22 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const res = await fetchWithTimeout(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(id)}?range=1y&interval=1d`,
-      { timeoutMs: 12000, headers: YF_HEADERS },
-    );
-    if (!res.ok) throw new Error(`Yahoo HTTP ${res.status}`);
-    const data = await res.json();
-    const r = data.chart?.result?.[0];
-    if (!r) throw new Error("no chart data");
-    const m = r.meta;
-    const pct = m.chartPreviousClose ? ((m.regularMarketPrice - m.chartPreviousClose) / m.chartPreviousClose) * 100 : 0;
+    const { fetchStooqQuote } = await import("@/lib/markets/stooq");
+    const q = await fetchStooqQuote(id);
+    if (!q) throw new Error("no Stooq EOD data");
+    const pct = q.open ? ((q.close - q.open) / q.open) * 100 : 0;
     return NextResponse.json({
       kind: "stock",
       id,
-      name: m.shortName ?? m.symbol,
-      symbol: m.symbol,
-      price: m.regularMarketPrice,
+      name: id,
+      symbol: id,
+      price: q.close,
       change24h: pct,
-      currency: m.currency,
-      exchange: m.exchangeName,
-      high52: m.fiftyTwoWeekHigh,
-      low52: m.fiftyTwoWeekLow,
-      volume: m.regularMarketVolume,
+      currency: "USD",
+      exchange: "EOD",
+      provider: "Stooq",
+      dataDelay: "End-of-day delayed — not investment advice",
+      observedAt: q.date,
       fetchedAt: new Date().toISOString(),
     });
   } catch (err) {

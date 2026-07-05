@@ -7,7 +7,8 @@ export const SEED_DATA_SOURCES: Omit<DataSourceConfig, "config_json">[] = [
   { id: "news_bbc_world", name: "BBC World RSS", source_type: "news", provider: "BBC", enabled: true, priority: 60, polling_interval_seconds: 300, retention_hours: 48, reliability_score: 0.9, requires_api_key: false, geographic_scope: "global" },
   { id: "opensky_states", name: "OpenSky Network", source_type: "aviation", provider: "OpenSky", enabled: true, priority: 70, polling_interval_seconds: 120, retention_hours: 12, reliability_score: 0.75, requires_api_key: false, geographic_scope: "regional", daily_request_budget: 500 },
   { id: "aishub_vessels", name: "AISHub Vessels", source_type: "maritime", provider: "AISHub", enabled: true, priority: 50, polling_interval_seconds: 300, retention_hours: 24, reliability_score: 0.7, requires_api_key: true, api_key_env_var: "AISHUB_API_KEY", geographic_scope: "regional" },
-  { id: "yahoo_quotes", name: "Yahoo Finance", source_type: "markets", provider: "Yahoo", enabled: true, priority: 80, polling_interval_seconds: 300, retention_hours: 24, reliability_score: 0.85, requires_api_key: false, geographic_scope: "global" },
+  { id: "stooq_eod", name: "Stooq EOD", source_type: "markets", provider: "Stooq", enabled: true, priority: 85, polling_interval_seconds: 3600, retention_hours: 168, reliability_score: 0.8, requires_api_key: false, geographic_scope: "global" },
+  { id: "yahoo_quotes", name: "Yahoo Finance", source_type: "markets", provider: "Yahoo", enabled: false, priority: 10, polling_interval_seconds: 300, retention_hours: 24, reliability_score: 0.5, requires_api_key: false, geographic_scope: "global" },
   { id: "coingecko_markets", name: "CoinGecko Markets", source_type: "markets", provider: "CoinGecko", enabled: true, priority: 75, polling_interval_seconds: 300, retention_hours: 24, reliability_score: 0.85, requires_api_key: false, geographic_scope: "global" },
   { id: "usgs_earthquakes", name: "USGS Earthquakes", source_type: "earth", provider: "USGS", enabled: true, priority: 90, polling_interval_seconds: 300, retention_hours: 168, reliability_score: 0.95, requires_api_key: false, geographic_scope: "global" },
   { id: "nvd_cves", name: "NVD CVEs", source_type: "cyber", provider: "NIST NVD", enabled: true, priority: 70, polling_interval_seconds: 600, retention_hours: 168, reliability_score: 0.9, requires_api_key: false, geographic_scope: "global" },
@@ -30,17 +31,17 @@ export const SEED_CITIES: GeoLocationConfig[] = [
 ];
 
 export const SEED_MARKET_INSTRUMENTS: MarketInstrumentConfig[] = [
-  { id: "idx_gspc", symbol: "^GSPC", name: "S&P 500", instrument_type: "index", exchange: "SNP", provider: "yahoo", enabled: true },
-  { id: "idx_dji", symbol: "^DJI", name: "Dow Jones", instrument_type: "index", provider: "yahoo", enabled: true },
-  { id: "idx_ixic", symbol: "^IXIC", name: "NASDAQ Composite", instrument_type: "index", provider: "yahoo", enabled: true },
-  { id: "idx_ftse", symbol: "^FTSE", name: "FTSE 100", instrument_type: "index", provider: "yahoo", enabled: true },
-  { id: "idx_n225", symbol: "^N225", name: "Nikkei 225", instrument_type: "index", provider: "yahoo", enabled: true },
-  { id: "eq_aapl", symbol: "AAPL", name: "Apple Inc.", instrument_type: "equity", provider: "yahoo", enabled: true },
-  { id: "eq_msft", symbol: "MSFT", name: "Microsoft", instrument_type: "equity", provider: "yahoo", enabled: true },
-  { id: "eq_nvda", symbol: "NVDA", name: "NVIDIA", instrument_type: "equity", provider: "yahoo", enabled: true },
-  { id: "eq_googl", symbol: "GOOGL", name: "Alphabet", instrument_type: "equity", provider: "yahoo", enabled: true },
-  { id: "eq_amzn", symbol: "AMZN", name: "Amazon", instrument_type: "equity", provider: "yahoo", enabled: true },
-  { id: "eq_tsla", symbol: "TSLA", name: "Tesla", instrument_type: "equity", provider: "yahoo", enabled: true },
+  { id: "idx_gspc", symbol: "^GSPC", name: "S&P 500", instrument_type: "index", exchange: "SNP", provider: "stooq", enabled: true },
+  { id: "idx_dji", symbol: "^DJI", name: "Dow Jones", instrument_type: "index", provider: "stooq", enabled: true },
+  { id: "idx_ixic", symbol: "^IXIC", name: "NASDAQ Composite", instrument_type: "index", provider: "stooq", enabled: true },
+  { id: "idx_ftse", symbol: "^FTSE", name: "FTSE 100", instrument_type: "index", provider: "stooq", enabled: true },
+  { id: "idx_n225", symbol: "^N225", name: "Nikkei 225", instrument_type: "index", provider: "stooq", enabled: true },
+  { id: "eq_aapl", symbol: "AAPL", name: "Apple Inc.", instrument_type: "equity", provider: "stooq", enabled: true },
+  { id: "eq_msft", symbol: "MSFT", name: "Microsoft", instrument_type: "equity", provider: "stooq", enabled: true },
+  { id: "eq_nvda", symbol: "NVDA", name: "NVIDIA", instrument_type: "equity", provider: "stooq", enabled: true },
+  { id: "eq_googl", symbol: "GOOGL", name: "Alphabet", instrument_type: "equity", provider: "stooq", enabled: true },
+  { id: "eq_amzn", symbol: "AMZN", name: "Amazon", instrument_type: "equity", provider: "stooq", enabled: true },
+  { id: "eq_tsla", symbol: "TSLA", name: "Tesla", instrument_type: "equity", provider: "stooq", enabled: true },
 ];
 
 export const SEED_NEWS_FEEDS = [

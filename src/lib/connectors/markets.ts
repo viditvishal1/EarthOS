@@ -3,6 +3,7 @@
 // the history helpers below; nothing links out to an exchange for basic reading.
 
 import { getMarketInstruments } from "@/lib/config/sources";
+import { fetchStooqHistory, fetchStooqQuote } from "@/lib/markets/stooq";
 import type { Item } from "@/lib/types";
 import { fetchWithTimeout, registerConnector } from "./framework";
 
@@ -102,6 +103,57 @@ interface YfChart {
 
 registerConnector(
   {
+    id: "stooq_eod",
+    module: "markets",
+    source: "Stooq EOD",
+    sourceUrl: "https://stooq.com",
+    scheduleSeconds: 3600,
+    contentPolicy: "full_cache",
+    entityTypes: ["instrument"],
+  },
+  async () => {
+    const symbols = await yahooSymbols();
+    const results = await Promise.allSettled(
+      symbols.map(async (meta) => {
+        const q = await fetchStooqQuote(meta.s);
+        if (!q) throw new Error("no quote");
+        const pct = q.open ? ((q.close - q.open) / q.open) * 100 : 0;
+        const item: Item = {
+          id: `stock:${meta.s}`,
+          module: "markets",
+          connectorId: "stooq_eod",
+          title: `${meta.name} (${meta.s.replace("^", "")})`,
+          summary: `${q.close.toLocaleString()} USD · EOD ${q.date} · ${pct >= 0 ? "+" : ""}${pct.toFixed(2)}% vs open`,
+          source: "Stooq EOD",
+          url: `https://stooq.com/q/?s=${encodeURIComponent(q.stooqSymbol)}`,
+          timestamp: new Date().toISOString(),
+          severity: Math.min(10, Math.abs(pct)),
+          severityLabel: `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`,
+          tags: [meta.assetClass, "eod"],
+          entities: [{ name: meta.name, type: "instrument" }],
+          contentPolicy: "full_cache",
+          extra: {
+            price: q.close,
+            changeDay: pct,
+            assetClass: meta.assetClass,
+            symbol: meta.s,
+            dataDelay: "EOD delayed",
+            provider: "stooq",
+          },
+        };
+        return item;
+      }),
+    );
+    const items = results
+      .filter((r): r is PromiseFulfilledResult<Item> => r.status === "fulfilled")
+      .map((r) => r.value);
+    if (items.length === 0) throw new Error("all Stooq EOD quotes failed");
+    return items;
+  },
+);
+
+registerConnector(
+  {
     id: "yahoo_quotes",
     module: "markets",
     source: "Yahoo Finance",
@@ -152,13 +204,18 @@ registerConnector(
   },
 );
 
-export const MARKETS_CONNECTOR_IDS = ["coingecko_markets", "yahoo_quotes"];
+export const MARKETS_CONNECTOR_IDS = ["coingecko_markets", "stooq_eod"];
 
-/** Daily close history from Yahoo Finance for in-app charting. */
+/** Daily close history — Stooq EOD first; Yahoo only when explicitly enabled. */
 export async function fetchStockHistory(
   symbol: string,
   days = 365,
 ): Promise<{ date: string; close: number; volume?: number }[]> {
+  const stooq = await fetchStooqHistory(symbol, days);
+  if (stooq.length > 0) return stooq;
+
+  if (process.env.YAHOO_FINANCE_ENABLED !== "true") return [];
+
   const range = days <= 7 ? "5d" : days <= 30 ? "1mo" : days <= 90 ? "3mo" : days <= 365 ? "1y" : "5y";
   const interval = days <= 7 ? "1h" : "1d";
   const res = await fetchWithTimeout(

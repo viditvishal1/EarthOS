@@ -6,6 +6,8 @@ import type { PanelDefinition, PanelInstance } from "@/lib/panels/types";
 import { PanelShell } from "@/components/dashboard/PanelShell";
 import { QuickPanelInner, type QuickKind } from "@/components/quick/QuickPanels";
 import { EventTimelinePanel } from "@/components/panels/EventTimelinePanel";
+import { MarketsSnapshotPanel } from "@/components/panels/MarketsSnapshotPanel";
+import { MonitorPanel } from "@/components/panels/MonitorPanel";
 
 const GlobeDashboard = dynamic(
   () => import("@/components/GlobeDashboard").then((m) => m.GlobeDashboard),
@@ -57,7 +59,6 @@ function ProviderHealthPanel() {
 
 const QUICK_MAP: Record<string, QuickKind> = {
   "wire-headlines": "wire",
-  "markets-snapshot": "stocks",
   "aviation-status": "wire",
 };
 
@@ -90,6 +91,22 @@ export function PanelContent({
     return (
       <PanelShell title={definition.title} source="GDELT / modules" onClose={onClose}>
         <EventTimelinePanel />
+      </PanelShell>
+    );
+  }
+
+  if (definition.componentId === "markets-snapshot") {
+    return (
+      <PanelShell title={definition.title} source="Stooq EOD · CoinGecko" onClose={onClose}>
+        <MarketsSnapshotPanel />
+      </PanelShell>
+    );
+  }
+
+  if (definition.componentId === "my-monitors") {
+    return (
+      <PanelShell title={definition.title} source="Alert engine" onClose={onClose}>
+        <MonitorPanel />
       </PanelShell>
     );
   }
