@@ -24,7 +24,7 @@ export const CAMERA_PROVIDERS: CameraProviderDefinition[] = [
     attribution: "Transport for London open data",
     licenseUrl: "https://tfl.gov.uk/info/terms/",
     legalMode: "image",
-    allowlistedHosts: ["tfl.gov.uk", "jamcam.tfl.gov.uk"],
+    allowlistedHosts: ["tfl.gov.uk", "jamcam.tfl.gov.uk", "s3-eu-west-1.amazonaws.com"],
     regions: ["London"],
   },
   {
@@ -75,7 +75,11 @@ export function isAllowlistedCameraUrl(source: CctvSource, url: string): boolean
   const provider = getCameraProvider(source);
   if (!provider) return false;
   try {
-    const host = new URL(url).hostname.toLowerCase();
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    if (source === "tfl" && host === "s3-eu-west-1.amazonaws.com") {
+      return parsed.pathname.includes("jamcams.tfl.gov.uk");
+    }
     return provider.allowlistedHosts.some((h) => host === h || host.endsWith(`.${h}`));
   } catch {
     return false;
