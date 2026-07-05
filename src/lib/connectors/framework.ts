@@ -52,7 +52,7 @@ export async function fetchWithTimeout(
       ...rest,
       signal: controller.signal,
       headers: {
-        "User-Agent": "EarthOS/2.0 (open-source intelligence dashboard)",
+        "User-Agent": "Argus/2.0 (open-source intelligence dashboard)",
         ...rest.headers,
       },
     });

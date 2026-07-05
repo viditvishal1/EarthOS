@@ -10,9 +10,9 @@ import type { Item } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  const secret = process.env.EARTHOS_INGEST_SECRET;
+  const secret = (process.env.ARGUS_INGEST_SECRET ?? process.env.EARTHOS_INGEST_SECRET);
   if (!secret) {
-    return NextResponse.json({ error: "EARTHOS_INGEST_SECRET not configured" }, { status: 503 });
+    return NextResponse.json({ error: "ARGUS_INGEST_SECRET not configured" }, { status: 503 });
   }
   const auth = req.headers.get("authorization");
   if (auth !== `Bearer ${secret}`) {

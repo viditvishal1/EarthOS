@@ -1,8 +1,8 @@
-# EarthOS
+# Argus
 
 **An open intelligence operating system built on public data.**
 
-EarthOS lets you search, read, filter, and cross-reference public information — news, cybersecurity feeds, aviation, maritime, space, markets, government data, infrastructure health, and startup signals — entirely inside one interface. Every module renders full readable content in-app, every list is filterable with the same universal filter bar, and every entity is a clickable node in a shared knowledge graph.
+Argus (formerly EarthOS) lets you search, read, filter, and cross-reference public information — news, cybersecurity feeds, aviation, maritime, space, markets, government data, infrastructure health, and startup signals — entirely inside one interface. Every module renders full readable content in-app, every list is filterable with the same universal filter bar, and every entity is a clickable node in a shared knowledge graph.
 
 Built from [`EarthOS_PRD_v2.md`](./EarthOS_PRD_v2.md). Runs at **$0 infrastructure cost**: every data source is a free public API, most of them keyless.
 
@@ -24,7 +24,7 @@ No keys are required to run. Optional keys in `.env.local`:
 | `PRODUCTHUNT_API_TOKEN` | Product Hunt daily launches | https://api.producthunt.com/v2/docs |
 | `SUPABASE_URL` + `SUPABASE_PUBLISHABLE_KEY` | Persistent article cache + ingest log | https://supabase.com/dashboard |
 | `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` | Redis event bus | https://upstash.com (free tier) |
-| `EARTHOS_INGEST_SECRET` | Rust connector worker → `/api/ingest` | set any strong secret |
+| `ARGUS_INGEST_SECRET` | Rust connector worker → `/api/ingest` | set any strong secret |
 
 ## Modules
 

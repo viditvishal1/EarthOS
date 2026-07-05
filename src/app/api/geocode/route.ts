@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
       `https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&format=json&addressdetails=1`,
       {
         timeoutMs: 10000,
-        headers: { "Accept-Language": "en", "User-Agent": "EarthOS/2.0 (city digital twin)" },
+        headers: { "Accept-Language": "en", "User-Agent": "Argus/2.0 (city digital twin)" },
       },
     );
     if (!res.ok) throw new Error(`Nominatim HTTP ${res.status}`);

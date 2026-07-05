@@ -68,7 +68,7 @@ export async function loadPersistedGraph(opts?: {
     title: String(d.title),
     summary: d.summary ? String(d.summary) : undefined,
     url: d.url ? String(d.url) : undefined,
-    source: "EarthOS Index",
+    source: "Argus Index",
     timestamp: d.published_at ? String(d.published_at) : new Date().toISOString(),
     tags: [],
     entities: [],

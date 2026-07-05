@@ -25,9 +25,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const secret = process.env.EARTHOS_ADMIN_SECRET;
+  const secret = (process.env.ARGUS_ADMIN_SECRET ?? process.env.EARTHOS_ADMIN_SECRET);
   if (!secret) {
-    return NextResponse.json({ error: "EARTHOS_ADMIN_SECRET not configured" }, { status: 503 });
+    return NextResponse.json({ error: "ARGUS_ADMIN_SECRET not configured" }, { status: 503 });
   }
   const auth = req.headers.get("authorization");
   if (auth !== `Bearer ${secret}`) {

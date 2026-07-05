@@ -64,7 +64,7 @@ registerConnector(
   },
 );
 
-const YF_HEADERS = { "User-Agent": "Mozilla/5.0 (EarthOS open-source dashboard)" };
+const YF_HEADERS = { "User-Agent": "Mozilla/5.0 (Argus open-source dashboard)" };
 
 async function yahooSymbols(): Promise<{ s: string; name: string; assetClass: string }[]> {
   const instruments = await getMarketInstruments();

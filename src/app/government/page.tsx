@@ -1,7 +1,7 @@
 import { GovernmentExtras } from "./search";
 import { ModuleView } from "@/components/ModuleView";
 
-export const metadata = { title: "Government & Legal — EarthOS" };
+export const metadata = { title: "Government & Legal — Argus" };
 
 export default function GovernmentPage() {
   return (

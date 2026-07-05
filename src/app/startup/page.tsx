@@ -1,6 +1,6 @@
 import { ModuleView } from "@/components/ModuleView";
 
-export const metadata = { title: "Startup Intelligence — EarthOS" };
+export const metadata = { title: "Startup Intelligence — Argus" };
 
 export default function StartupPage() {
   return (

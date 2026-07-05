@@ -25,7 +25,7 @@ export interface ResearchResponse {
   error?: string;
 }
 
-const RESEARCH_SYSTEM = `You are EarthOS Research. Answer ONLY from the numbered sources provided.
+const RESEARCH_SYSTEM = `You are Argus Research. Answer ONLY from the numbered sources provided.
 - Cite every factual claim as [n].
 - If sources conflict, state both views and mark uncertainty.
 - Prefix any inference beyond sources with "Inference:".

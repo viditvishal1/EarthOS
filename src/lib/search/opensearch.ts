@@ -114,7 +114,7 @@ export function hitsToItems(hits: SearchHit[]): Item[] {
     title: h.title,
     summary: h.summary,
     url: h.url,
-    source: h.source === "opensearch" ? "OpenSearch" : "EarthOS Index",
+    source: h.source === "opensearch" ? "OpenSearch" : "Argus Index",
     timestamp: h.timestamp ?? new Date().toISOString(),
     tags: [],
     entities: [],

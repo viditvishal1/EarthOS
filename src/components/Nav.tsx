@@ -41,7 +41,7 @@ export function Nav() {
       <Link href="/" className="mb-4 flex items-center gap-2 px-2">
         <Radar className="h-5 w-5 text-accent" />
         <span className="mono hidden text-sm font-semibold tracking-widest text-ink lg:inline">
-          EARTH<span className="text-accent">OS</span>
+          ARG<span className="text-accent">US</span>
         </span>
       </Link>
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto">

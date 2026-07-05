@@ -147,7 +147,7 @@ function ModuleViewInner({
               <ReaderPane item={selected} onClose={() => setSelectedId(null)} />
             ) : (
               <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-line text-xs text-ink-dim">
-                Select an item to read it here — without leaving EarthOS.
+                Select an item to read it here — without leaving Argus.
               </div>
             )}
           </div>

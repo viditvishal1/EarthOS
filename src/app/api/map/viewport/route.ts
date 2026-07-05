@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     viewport: vp,
     count: filtered.length,
     points: filtered,
-    provider: layer === "aviation" ? "OpenSky/adsb.lol" : "EarthOS",
+    provider: layer === "aviation" ? "OpenSky/adsb.lol" : "Argus",
     fetchedAt: new Date().toISOString(),
   });
 }

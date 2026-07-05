@@ -3,7 +3,7 @@ import { fetchWithTimeout } from "@/lib/connectors/framework";
 
 export const dynamic = "force-dynamic";
 
-const YF_HEADERS = { "User-Agent": "Mozilla/5.0 (EarthOS open-source dashboard)" };
+const YF_HEADERS = { "User-Agent": "Mozilla/5.0 (Argus open-source dashboard)" };
 
 export async function GET(req: NextRequest) {
   const kind = req.nextUrl.searchParams.get("kind") ?? "crypto";

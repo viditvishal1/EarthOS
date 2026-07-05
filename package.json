@@ -1,8 +1,8 @@
 {
-  "name": "earthos",
+  "name": "argus",
   "version": "2.0.0",
   "private": true,
-  "description": "EarthOS — an open intelligence operating system built on public data",
+  "description": "Argus — an open intelligence operating system built on public data",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

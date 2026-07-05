@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 function authorized(req: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET ?? process.env.EARTHOS_ADMIN_SECRET;
+  const secret = process.env.CRON_SECRET ?? (process.env.ARGUS_ADMIN_SECRET ?? process.env.EARTHOS_ADMIN_SECRET);
   if (!secret) return process.env.NODE_ENV === "development";
   const auth = req.headers.get("authorization");
   return auth === `Bearer ${secret}` || req.headers.get("x-vercel-cron") === "1";

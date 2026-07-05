@@ -5,7 +5,7 @@ import { GlobalSearchBar } from "@/components/GlobalSearchBar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const metadata: Metadata = {
-  title: "EarthOS — Open Intelligence Operating System",
+  title: "Argus — Open Intelligence Operating System",
   description:
     "Search, read, filter, and cross-reference public data — news, cyber, aviation, maritime, space, markets and more — in one interface.",
 };

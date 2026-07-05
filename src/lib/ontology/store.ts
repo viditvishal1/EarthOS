@@ -120,7 +120,7 @@ export async function enrichFromWikidata(name: string): Promise<{ wikidataId?: s
     const q = encodeURIComponent(name);
     const res = await fetch(
       `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${q}&language=en&format=json&limit=1`,
-      { headers: { "User-Agent": "EarthOS/2.0" }, next: { revalidate: 86400 } },
+      { headers: { "User-Agent": "Argus/2.0" }, next: { revalidate: 86400 } },
     );
     if (!res.ok) return null;
     const data = await res.json();

@@ -14,7 +14,7 @@ interface EvidenceInput {
 export async function POST(req: NextRequest) {
   await trackApiRequest("/api/reports/export");
   const body = await req.json().catch(() => ({}));
-  const title = String(body.title ?? "EarthOS Investigation Report");
+  const title = String(body.title ?? "Argus Investigation Report");
   const query = String(body.query ?? body.hypothesis ?? title).trim();
   const evidence = (Array.isArray(body.evidence) ? body.evidence : []) as EvidenceInput[];
   const notes = (Array.isArray(body.notes) ? body.notes : []) as { body: string; author?: string }[];
@@ -61,12 +61,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "query, evidence, or notes required" }, { status: 400 });
   }
 
-  lines.push("---", research?.inferenceLabel ?? "EarthOS cited report export.");
+  lines.push("---", research?.inferenceLabel ?? "Argus cited report export.");
 
   return new NextResponse(lines.join("\n"), {
     headers: {
       "Content-Type": "text/markdown; charset=utf-8",
-      "Content-Disposition": `attachment; filename="earthos-report-${Date.now()}.md"`,
+      "Content-Disposition": `attachment; filename="argus-report-${Date.now()}.md"`,
     },
   });
 }
