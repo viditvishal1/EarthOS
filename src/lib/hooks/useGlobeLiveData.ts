@@ -6,15 +6,36 @@ import type { CctvCamera } from "@/lib/live/cctv/types";
 import { cameraAgencyUrl } from "@/lib/cameras/registry";
 import { useSmartPoll } from "@/lib/hooks/useSmartPoll";
 import type { LayerData } from "@/lib/maps/layer-catalog";
+import { PLATFORM_HQ } from "@/lib/maps/static-geo";
 
 const EMPTY_LAYERS: LayerData = {
   events: [], quakes: [], iss: [], flights: [], ships: [], webcams: [], cctv: [],
   fires: [], advisories: [], sanctions: [], conflicts: [], cyber: [], forecasts: [],
   predictions: [], infrastructure: [], satellites: [],
+  nuclear: [], pipelines: [], cables: [], ports: [], chokepoints: [], volcanoes: [],
+  spaceports: [], refineries: [], outages: [], airports: [], notams: [], outbreaks: [],
+  energy: [], patents: [], startups: [], gdelt: [],
 };
 
 function geoItems(items: Item[]): Item[] {
   return items.filter((i) => typeof i.lat === "number" && typeof i.lon === "number");
+}
+
+function staticLayer(earthItems: Item[], category: string): Item[] {
+  return geoItems(earthItems.filter((i) => i.tags.includes("static-geo") && i.tags.includes(category)));
+}
+
+function outageItems(infraItems: Item[]): Item[] {
+  return geoItems(
+    infraItems
+      .filter((i) => i.connectorId === "statuspage_incidents")
+      .map((i) => {
+        const key = Object.keys(PLATFORM_HQ).find((k) => i.title.includes(k) || i.source?.includes(k));
+        const hq = key ? PLATFORM_HQ[key] : null;
+        if (!hq) return i;
+        return { ...i, lat: hq.lat, lon: hq.lon };
+      }),
+  );
 }
 
 export interface GlobeLiveMeta {
@@ -135,6 +156,9 @@ export function useGlobeLiveData(region = "global") {
     const marketItems = data.modules?.markets?.items ?? [];
     const infraItems = data.modules?.infrastructure?.items ?? [];
     const spaceItems = data.modules?.space?.items ?? [];
+    const aviationItems = data.modules?.aviation?.items ?? [];
+    const startupItems = data.modules?.startup?.items ?? [];
+    const macroItems = data.modules?.macro?.items ?? [];
 
     setLayerData({
       events: eventItems,
@@ -147,12 +171,28 @@ export function useGlobeLiveData(region = "global") {
       fires: geoItems(earthItems.filter((i) => i.tags.includes("fire") || i.connectorId === "nasa-firms")),
       advisories: geoItems(conflictItems.filter((i) => i.tags.includes("advisory"))),
       sanctions: geoItems(govItems.filter((i) => i.connectorId === "sanctions_pressure")),
-      conflicts: geoItems(conflictItems.filter((i) => !i.tags.includes("advisory"))),
+      conflicts: geoItems(conflictItems.filter((i) => !i.tags.includes("advisory") && !i.tags.includes("outbreak"))),
       cyber: geoItems(cyberItems),
       forecasts: geoItems(earthItems.filter((i) => i.tags.includes("forecast"))),
       predictions: marketItems.filter((i) => i.connectorId === "polymarket_markets"),
       infrastructure: geoItems(infraItems),
       satellites: geoItems(spaceItems.filter((i) => !i.tags.includes("iss"))),
+      nuclear: staticLayer(earthItems, "nuclear"),
+      pipelines: staticLayer(earthItems, "pipelines"),
+      cables: staticLayer(earthItems, "cables"),
+      ports: staticLayer(earthItems, "ports"),
+      chokepoints: staticLayer(earthItems, "chokepoints"),
+      volcanoes: staticLayer(earthItems, "volcanoes"),
+      spaceports: staticLayer(earthItems, "spaceports"),
+      refineries: staticLayer(earthItems, "refineries"),
+      outages: outageItems(infraItems),
+      airports: geoItems(aviationItems.filter((i) => i.connectorId === "major_airport_hubs")),
+      notams: geoItems(aviationItems.filter((i) => i.tags.includes("notam"))),
+      outbreaks: conflictItems.filter((i) => i.tags.includes("outbreak") || i.connectorId === "who_disease_outbreaks"),
+      energy: macroItems.filter((i) => i.tags.some((t) => t.includes("energy") || t.includes("eia"))),
+      patents: govItems.filter((i) => i.connectorId === "patentsview_recent"),
+      startups: startupItems,
+      gdelt: newsItems.filter((i) => i.connectorId === "gdelt_events" || i.tags.includes("gdelt")),
     });
 
     setFlights(data.flights?.global ?? []);

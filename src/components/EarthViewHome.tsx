@@ -249,7 +249,7 @@ export function EarthViewHome() {
         />
 
         {/* Layers panel — top right (below map basemap controls) */}
-        <div className="hud-window absolute right-3 top-3 z-10 flex w-48 max-h-[min(480px,calc(100%-1.5rem))] flex-col gap-1 overflow-y-auto rounded-lg px-2.5 py-2 sm:top-[3.75rem]">
+        <div className="hud-window absolute right-3 top-3 z-10 flex w-48 max-h-[min(560px,calc(100%-1.5rem))] flex-col gap-1 overflow-y-auto rounded-lg px-2.5 py-2 sm:top-[3.75rem]">
           <div className="mb-0.5 flex items-center justify-between">
             <span className="text-[9px] font-medium uppercase tracking-widest text-ink-dim">Layers</span>
             {isolate && (

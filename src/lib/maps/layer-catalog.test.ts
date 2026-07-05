@@ -17,8 +17,8 @@ const item = (id: string): Item => ({
 });
 
 describe("layer catalog", () => {
-  it("has 16 layer types", () => {
-    expect(Object.keys(LAYER_CATALOG).length).toBe(16);
+  it("has 32 layer types", () => {
+    expect(Object.keys(LAYER_CATALOG).length).toBe(32);
   });
 
   it("builds visible layers from toggles", () => {

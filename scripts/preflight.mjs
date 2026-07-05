@@ -21,7 +21,7 @@ if (publicSecretLeaks?.length) fail(`NEXT_PUBLIC secret-like vars in .env.exampl
 else pass("No sensitive NEXT_PUBLIC_* in .env.example");
 
 const migrationsDir = join(root, "supabase/migrations");
-for (const m of ["004_dashboard_panels.sql", "005_observations_tracks.sql", "006_provider_governance.sql", "007_alerts_search_ops.sql", "008_user_auth_rls.sql", "009_org_members.sql", "010_preferences_push.sql", "011_api_keys.sql"]) {
+for (const m of ["004_dashboard_panels.sql", "005_observations_tracks.sql", "006_provider_governance.sql", "007_alerts_search_ops.sql", "008_user_auth_rls.sql", "009_org_members.sql", "010_preferences_push.sql", "011_api_keys.sql", "012_billing.sql"]) {
   if (existsSync(join(migrationsDir, m))) pass(`Migration ${m}`);
   else fail(`Missing migration ${m}`);
 }

@@ -2,6 +2,7 @@
 // Surfaces active notices for major hub airports worldwide.
 
 import type { Item } from "@/lib/types";
+import { HUB_AIRPORT_COORDS } from "@/lib/maps/static-geo";
 import { fetchWithTimeout, registerConnector } from "./framework";
 
 const HUBS = [
@@ -48,7 +49,8 @@ registerConnector(
     for (const f of features.slice(0, 80)) {
       const n = f.properties?.coreNOTAMData?.notam;
       if (!n?.text) continue;
-      const loc = n.icaoLocation ?? n.location ?? "UNKNOWN";
+      const loc = (n.icaoLocation ?? n.location ?? "UNKNOWN").toUpperCase();
+      const hub = HUB_AIRPORT_COORDS[loc];
       const text = n.text.replace(/\s+/g, " ").trim().slice(0, 800);
       items.push({
         id: `notam:${n.id ?? n.number ?? text.slice(0, 40)}`,
@@ -60,6 +62,8 @@ registerConnector(
         source: "AviationWeather NOTAMs",
         url: `https://aviationweather.gov/notam/?ids=${loc}`,
         timestamp: n.effectiveStart ? new Date(n.effectiveStart).toISOString() : new Date().toISOString(),
+        lat: hub?.lat,
+        lon: hub?.lon,
         severity: 4,
         severityLabel: "NOTAM",
         tags: ["notam", "airport"],

@@ -19,6 +19,9 @@ import "./governance";
 import "./telegram";
 import "./polymarket";
 import "./forecasts";
+import "./static-geo";
+import "./outbreaks";
+import "./major-airports";
 import "./macro";
 import "./firms";
 

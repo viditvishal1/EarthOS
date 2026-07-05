@@ -20,6 +20,22 @@ export interface LayerData {
   predictions: Item[];
   infrastructure: Item[];
   satellites: Item[];
+  nuclear: Item[];
+  pipelines: Item[];
+  cables: Item[];
+  ports: Item[];
+  chokepoints: Item[];
+  volcanoes: Item[];
+  spaceports: Item[];
+  refineries: Item[];
+  outages: Item[];
+  airports: Item[];
+  notams: Item[];
+  outbreaks: Item[];
+  energy: Item[];
+  patents: Item[];
+  startups: Item[];
+  gdelt: Item[];
 }
 
 export const LAYER_CATALOG = {
@@ -39,6 +55,22 @@ export const LAYER_CATALOG = {
   predictions: { label: "Predictions", color: "#10b981", defaultOn: false, maxItems: 40, radius: 4 },
   infrastructure: { label: "Infra", color: "#64748b", defaultOn: false, maxItems: 100, radius: 3 },
   satellites: { label: "Satellites", color: "#c084fc", defaultOn: false, maxItems: 50, radius: 3 },
+  nuclear: { label: "Nuclear", color: "#eab308", defaultOn: false, maxItems: 50, radius: 5 },
+  pipelines: { label: "Pipelines", color: "#78716c", defaultOn: false, maxItems: 30, radius: 4 },
+  cables: { label: "Cables", color: "#0ea5e9", defaultOn: false, maxItems: 30, radius: 4 },
+  ports: { label: "Ports", color: "#2563eb", defaultOn: false, maxItems: 40, radius: 4 },
+  chokepoints: { label: "Chokepoints", color: "#f97316", defaultOn: false, maxItems: 20, radius: 6 },
+  volcanoes: { label: "Volcanoes", color: "#dc2626", defaultOn: false, maxItems: 30, radius: 5 },
+  spaceports: { label: "Spaceports", color: "#a855f7", defaultOn: false, maxItems: 20, radius: 5 },
+  refineries: { label: "Refineries", color: "#57534e", defaultOn: false, maxItems: 30, radius: 4 },
+  outages: { label: "Outages", color: "#f43f5e", defaultOn: false, maxItems: 50, radius: 5 },
+  airports: { label: "Airports", color: "#3b82f6", defaultOn: false, maxItems: 50, radius: 4 },
+  notams: { label: "NOTAMs", color: "#fbbf24", defaultOn: false, maxItems: 80, radius: 4 },
+  outbreaks: { label: "Outbreaks", color: "#84cc16", defaultOn: false, maxItems: 40, radius: 5 },
+  energy: { label: "Energy", color: "#ca8a04", defaultOn: false, maxItems: 40, radius: 4 },
+  patents: { label: "Patents", color: "#6366f1", defaultOn: false, maxItems: 40, radius: 3 },
+  startups: { label: "Startups", color: "#14b8a6", defaultOn: false, maxItems: 40, radius: 3 },
+  gdelt: { label: "GDELT", color: "#38bdf8", defaultOn: false, maxItems: 80, radius: 3 },
 } as const;
 
 export type LayerKey = keyof typeof LAYER_CATALOG;

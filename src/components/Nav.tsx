@@ -13,6 +13,8 @@ import { FreshnessBadge } from "@/components/FreshnessBadge";
 import { FindingsBadge } from "@/components/FindingsBadge";
 import { AuthButton } from "@/components/AuthButton";
 import { useActiveVariant } from "@/lib/variants/useVariant";
+import { useLocale } from "@/lib/i18n/useLocale";
+import { navLabel } from "@/lib/i18n";
 
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   earth: Globe2, news: Newspaper, cyber: ShieldAlert, aviation: Plane,
@@ -25,6 +27,7 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
 export function Nav() {
   const pathname = usePathname();
   const { variant } = useActiveVariant();
+  const { locale } = useLocale();
   const moduleSet = new Set(variant.modules);
   const visibleModules = MODULES.filter((m) => moduleSet.has(m.id));
 
@@ -60,14 +63,14 @@ export function Nav() {
       </div>
       <VariantSwitcher />
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto">
-        {visibleModules.map((m) => link(m.path, m.name, ICONS[m.id] ?? Globe2))}
+        {visibleModules.map((m) => link(m.path, navLabel(locale, m.id, m.name), ICONS[m.id] ?? Globe2))}
       </nav>
       <div className="mt-2 flex flex-col gap-0.5 border-t border-line pt-2">
         <AuthButton />
-        {link("/saved", "Saved", Bookmark)}
-        {link("/methodology", "Methodology", BookOpen)}
-        {link("/admin/sources", "Sources", Settings)}
-        {link("/settings", "Settings", Settings)}
+        {link("/saved", navLabel(locale, "saved", "Saved"), Bookmark)}
+        {link("/methodology", navLabel(locale, "methodology", "Methodology"), BookOpen)}
+        {link("/admin/sources", navLabel(locale, "sources", "Sources"), Settings)}
+        {link("/settings", navLabel(locale, "settings", "Settings"), Settings)}
       </div>
     </aside>
   );
