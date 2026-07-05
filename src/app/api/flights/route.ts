@@ -1,43 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchFlights, REGIONS } from "@/lib/connectors";
+import { readLive } from "@/lib/live/store";
+import type { Item } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const g = globalThis as unknown as {
-  __flightsCache?: Map<string, { at: number; items: unknown[] }>;
-};
-const cache = (g.__flightsCache ??= new Map());
-
-const CACHE_MS: Record<string, number> = {
-  global: 120_000,
-  europe: 60_000,
-  usa: 60_000,
-  india: 60_000,
-  easia: 60_000,
-  china: 60_000,
-  africa: 60_000,
-  mideast: 60_000,
-};
+// Read-only from the shared live store (Redis, stale-while-revalidate). The
+// request path never blocks on OpenSky/adsb.lol when a cached value exists —
+// it returns the last-known-good positions immediately and refreshes in the
+// background. Regions refresh on a ~75s soft TTL.
+const TTL_SECONDS = 75;
 
 export async function GET(req: NextRequest) {
   const region = req.nextUrl.searchParams.get("region") ?? "europe";
   if (!REGIONS[region]) {
     return NextResponse.json({ error: "unknown region", regions: Object.keys(REGIONS) }, { status: 400 });
   }
-  const ttl = CACHE_MS[region] ?? 60_000;
-  const hit = cache.get(region);
-  if (hit && Date.now() - hit.at < ttl) {
-    return NextResponse.json({ items: hit.items, cached: true, region });
-  }
-  try {
-    const items = await fetchFlights(region);
-    cache.set(region, { at: Date.now(), items });
-    return NextResponse.json({ items, fetchedAt: new Date().toISOString(), region, probeCount: REGIONS[region].probes.length });
-  } catch (err) {
-    return NextResponse.json(
-      { items: hit?.items ?? [], error: err instanceof Error ? err.message : "fetch failed", region },
-      { status: hit ? 200 : 502 },
-    );
-  }
+
+  const result = await readLive<Item[]>(
+    `flights:${region}`,
+    () => fetchFlights(region),
+    { ttlSeconds: TTL_SECONDS, source: "OpenSky/adsb.lol", fallback: [], coldTimeoutMs: 8000 },
+  );
+
+  return NextResponse.json({
+    items: result.data,
+    region,
+    stale: result.stale,
+    cold: result.cold,
+    updatedAt: result.updatedAt,
+    ageSeconds: result.ageSeconds == null ? null : Math.round(result.ageSeconds),
+    fetchedAt: new Date().toISOString(),
+  });
 }
