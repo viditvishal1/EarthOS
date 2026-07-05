@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "verify:live-data": "node scripts/verify-live-data.mjs"
+    "verify:live-data": "node scripts/verify-live-data.mjs",
+    "seed:cctv": "node scripts/seed-cctv.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1079.0",

@@ -22,6 +22,7 @@ const LAYER_META = {
   flights: { label: "Flights", color: "var(--color-live)", key: "flights" as const },
   ships: { label: "Ships", color: "#22d3ee", key: "ships" as const },
   webcams: { label: "Webcams", color: "#a78bfa", key: "webcams" as const },
+  cctv: { label: "CCTV", color: "#f472b6", key: "cctv" as const },
 } as const;
 
 type LayerKey = keyof typeof LAYER_META;
@@ -63,12 +64,13 @@ export function GlobeDashboard({
   const iss = issProp ?? live.iss;
   const ships = live.ships;
   const webcams = live.webcams;
+  const cctv = live.cctv;
 
   const [now, setNow] = useState(new Date());
   const [selected, setSelected] = useState<Item | null>(null);
   const [coords, setCoords] = useState<{ lat: number; lon: number; zoom: number } | null>(null);
   const [toggles, setToggles] = useState<Record<LayerKey, boolean>>({
-    events: true, quakes: true, iss: true, flights: true, ships: false, webcams: false,
+    events: true, quakes: true, iss: true, flights: true, ships: false, webcams: false, cctv: false,
   });
   const [isolate, setIsolate] = useState<LayerKey | null>(null);
   const [autoRotate, setAutoRotate] = useState(variant === "dashboard");
@@ -87,6 +89,7 @@ export function GlobeDashboard({
     flights: flights.length,
     ships: ships.length,
     webcams: webcams.length,
+    cctv: cctv.length,
   };
 
   const activeToggles = useMemo(() => {
@@ -104,12 +107,13 @@ export function GlobeDashboard({
     if (activeToggles.flights) out.push({ id: "flights", color: LAYER_META.flights.color, items: flights, radius: 2, icon: "plane" });
     if (activeToggles.ships) out.push({ id: "ships", color: LAYER_META.ships.color, items: ships, radius: 3 });
     if (activeToggles.webcams) out.push({ id: "webcams", color: LAYER_META.webcams.color, items: webcams, radius: 4 });
+    if (activeToggles.cctv) out.push({ id: "cctv", color: LAYER_META.cctv.color, items: cctv, radius: 4 });
     return out;
-  }, [activeToggles, events, quakes, iss, flights, ships, webcams]);
+  }, [activeToggles, events, quakes, iss, flights, ships, webcams, cctv]);
 
   const allItems = useMemo(
-    () => [...events, ...quakes, ...iss, ...flights, ...ships, ...webcams],
-    [events, quakes, iss, flights, ships, webcams],
+    () => [...events, ...quakes, ...iss, ...flights, ...ships, ...webcams, ...cctv],
+    [events, quakes, iss, flights, ships, webcams, cctv],
   );
 
   const ticker = useMemo(
@@ -274,6 +278,16 @@ export function GlobeDashboard({
             <button type="button" onClick={() => setSelected(null)} className="text-ink-dim hover:text-ink" aria-label="Close">✕</button>
           </div>
           <div className="p-3">
+            {selected.tags.includes("cctv") && typeof selected.extra?.imageUrl === "string" && (
+              <div className="mb-2 overflow-hidden rounded-md border border-line">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={selected.extra.imageUrl}
+                  alt={selected.title}
+                  className="aspect-video w-full object-cover"
+                />
+              </div>
+            )}
             <div className="text-[13px] font-medium text-ink">{selected.title}</div>
             {selected.summary && <p className="mt-1 line-clamp-4 text-[12px] text-soft">{selected.summary}</p>}
             <div className="mt-2 flex items-center gap-2">

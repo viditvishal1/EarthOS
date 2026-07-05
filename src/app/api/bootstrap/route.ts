@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { readLiveCached } from "@/lib/live/store";
 import { readModuleLiveCached } from "@/lib/live/module-cache";
 import { readAllSeedMeta } from "@/lib/live/seed-meta";
+import type { CctvCamera } from "@/lib/live/cctv";
 import {
   BOOTSTRAP_FLIGHT_REGIONS,
   BOOTSTRAP_MODULES,
@@ -36,7 +37,7 @@ export async function GET() {
     ),
   );
 
-  const [ships, webcams, iss, ...moduleResults] = await Promise.all([
+  const [ships, webcams, cctv, iss, ...moduleResults] = await Promise.all([
     readLiveCached<Item[]>("ships:global", {
       ttlSeconds: LIVE_SOFT_TTL.ships,
       source: "AISHub",
@@ -45,6 +46,11 @@ export async function GET() {
     readLiveCached<unknown[]>("webcams:all", {
       ttlSeconds: LIVE_SOFT_TTL.webcams,
       source: "Curated + Windy",
+      fallback: [],
+    }),
+    readLiveCached<CctvCamera[]>("cctv:all", {
+      ttlSeconds: LIVE_SOFT_TTL.cctv,
+      source: "TfL/WSDOT/Caltrans/NYC/VicRoads",
       fallback: [],
     }),
     readLiveCached<IssPosition | null>("iss:position", {
@@ -104,6 +110,14 @@ export async function GET() {
       ageSeconds: webcams.ageSeconds == null ? null : Math.round(webcams.ageSeconds),
       updatedAt: webcams.updatedAt,
       source: webcams.source,
+    },
+    cctv: {
+      cameras: cctv.data,
+      stale: cctv.stale,
+      cold: cctv.cold,
+      ageSeconds: cctv.ageSeconds == null ? null : Math.round(cctv.ageSeconds),
+      updatedAt: cctv.updatedAt,
+      source: cctv.source,
     },
     iss: iss.data,
     modules,

@@ -19,7 +19,7 @@ const TITLES: Record<QuickKind, string> = {
   stocks: "Stocks — live tickers",
   streams: "Streams — live news TV",
   predictions: "Predictions — watch signals",
-  cameras: "Cameras — public webcams",
+  cameras: "Cameras — traffic CCTV & webcams",
   defcon: "Defcon — alert posture",
   outbreaks: "Outbreaks — health & humanitarian",
 };
@@ -169,17 +169,42 @@ function PredictionsPanel() {
 }
 
 interface Webcam { id: string; title: string; place?: string; region: string; videoId?: string; thumbnail?: string; url: string; provider: string }
-const CAM_REGIONS = ["all", "middle-east", "europe", "americas", "asia", "space"] as const;
+interface CctvCam { id: string; title: string; region: string; imageUrl: string; refreshSeconds: number; source: string; lastSeenAt: string }
+
+const CAM_REGIONS = ["all", "London", "Seattle", "California", "NYC", "Melbourne", "middle-east", "europe", "americas", "asia", "space"] as const;
 
 function CamerasPanel() {
   const [cams, setCams] = useState<Webcam[]>([]);
+  const [cctv, setCctv] = useState<CctvCam[]>([]);
   const [region, setRegion] = useState<(typeof CAM_REGIONS)[number]>("all");
+  const [tab, setTab] = useState<"cctv" | "webcams">("cctv");
+
   useEffect(() => {
-    fetch("/api/webcams").then((r) => r.json()).then((d) => setCams(d.items ?? [])).catch(() => {});
+    Promise.all([
+      fetch("/api/cctv").then((r) => r.json()).then((d) => setCctv(d.cameras ?? [])).catch(() => {}),
+      fetch("/api/webcams").then((r) => r.json()).then((d) => setCams(d.items ?? [])).catch(() => {}),
+    ]);
   }, []);
-  const shown = useMemo(() => cams.filter((c) => region === "all" || c.region === region), [cams, region]);
+
+  const shownCctv = useMemo(
+    () => cctv.filter((c) => region === "all" || c.region === region),
+    [cctv, region],
+  );
+  const shownWeb = useMemo(
+    () => cams.filter((c) => region === "all" || c.region === region),
+    [cams, region],
+  );
+
   return (
     <div className="flex flex-col gap-2">
+      <div className="flex gap-1">
+        {(["cctv", "webcams"] as const).map((t) => (
+          <button key={t} onClick={() => setTab(t)}
+            className={`rounded-full border px-2 py-0.5 text-[10px] capitalize ${tab === t ? "border-accent text-accent" : "border-line text-ink-dim hover:text-ink"}`}>
+            {t === "cctv" ? "Traffic CCTV" : "Web streams"}
+          </button>
+        ))}
+      </div>
       <div className="flex flex-wrap gap-1">
         {CAM_REGIONS.map((r) => (
           <button key={r} onClick={() => setRegion(r)}
@@ -188,9 +213,26 @@ function CamerasPanel() {
           </button>
         ))}
       </div>
-      {!cams.length ? <Loading /> : (
+      {tab === "cctv" ? (
+        !cctv.length ? <Loading /> : (
+          <div className="grid grid-cols-2 gap-2">
+            {shownCctv.map((c) => (
+              <a key={c.id} href={c.imageUrl} target="_blank" rel="noreferrer" className="group overflow-hidden rounded-md border border-line">
+                <div className="relative aspect-video bg-black">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={c.imageUrl} alt={c.title} className="h-full w-full object-cover opacity-80 group-hover:opacity-100" loading="lazy" />
+                </div>
+                <div className="px-1.5 py-1 text-[10px] text-ink">{c.title}</div>
+                <div className="px-1.5 pb-1 text-[9px] text-ink-dim">
+                  Snapshot · ~{Math.max(1, Math.round(c.refreshSeconds / 60))} min · {c.source}
+                </div>
+              </a>
+            ))}
+          </div>
+        )
+      ) : !cams.length ? <Loading /> : (
         <div className="grid grid-cols-2 gap-2">
-          {shown.map((c) => (
+          {shownWeb.map((c) => (
             <a key={c.id} href={c.url} target="_blank" rel="noreferrer" className="group overflow-hidden rounded-md border border-line">
               <div className="relative aspect-video bg-black">
                 {/* eslint-disable-next-line @next/next/no-img-element */}

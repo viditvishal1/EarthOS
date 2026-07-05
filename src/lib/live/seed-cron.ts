@@ -4,6 +4,7 @@ import { readLiveCached, seedLiveSafe } from "@/lib/live/store";
 import { seedModuleLive } from "@/lib/live/module-cache";
 import { writeSeedMeta } from "@/lib/live/seed-meta";
 import { fetchAllWebcams } from "@/lib/live/webcams";
+import { seedAllCctv } from "@/lib/live/cctv/seed";
 import {
   FLIGHT_SEED_REGIONS,
   LIVE_SOFT_TTL,
@@ -318,6 +319,7 @@ export async function seedLiveDomains(): Promise<SeedLiveDomainsResult> {
 
   domains.push(await seedShips());
   domains.push(await seedWebcams());
+  domains.push(...await seedAllCctv());
   domains.push(await seedIss());
 
   for (const batch of chunk(SEED_MODULES, 2)) {
@@ -339,12 +341,14 @@ export function legacyCountsFromDomains(domains: DomainSeedResult[]): {
   flights: Record<string, number>;
   ships: number;
   webcams: number;
+  cctv: number;
   iss: number;
   modules: Record<string, number>;
 } {
   const flights: Record<string, number> = {};
   let ships = 0;
   let webcams = 0;
+  let cctv = 0;
   let iss = 0;
   const modules: Record<string, number> = {};
 
@@ -355,6 +359,8 @@ export function legacyCountsFromDomains(domains: DomainSeedResult[]): {
       ships = d.status === "error" ? -1 : d.count;
     } else if (d.domain === "webcams:all") {
       webcams = d.status === "error" ? -1 : d.count;
+    } else if (d.domain === "cctv:all") {
+      cctv = d.status === "error" ? -1 : d.count;
     } else if (d.domain === "iss:position") {
       iss = d.status === "error" ? -1 : d.count;
     } else if (d.domain.startsWith("module:")) {
@@ -362,7 +368,7 @@ export function legacyCountsFromDomains(domains: DomainSeedResult[]): {
     }
   }
 
-  return { flights, ships, webcams, iss, modules };
+  return { flights, ships, webcams, cctv, iss, modules };
 }
 
 export type CronDomainStatus =
@@ -401,6 +407,8 @@ export function formatCronDomainSummaries(domains: DomainSeedResult[]): Record<s
       key = "ships";
     } else if (d.domain === "webcams:all") {
       key = "webcams";
+    } else if (d.domain === "cctv:all") {
+      key = "cctv";
     } else if (d.domain === "iss:position") {
       key = "iss";
     } else if (d.domain.startsWith("module:")) {

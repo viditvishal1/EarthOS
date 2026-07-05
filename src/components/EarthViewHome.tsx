@@ -24,6 +24,7 @@ const LAYER_META = {
   flights: { label: "Flights", color: "#39ff8f" },
   ships: { label: "Ships", color: "#22d3ee" },
   webcams: { label: "Webcams", color: "#a78bfa" },
+  cctv: { label: "CCTV", color: "#f472b6" },
 } as const;
 
 type LayerKey = keyof typeof LAYER_META;
@@ -72,7 +73,7 @@ export function EarthViewHome() {
   const [cityWeather, setCityWeather] = useState<KpiState["weather"]>();
   const [fetchedAt, setFetchedAt] = useState<string>();
   const [toggles, setToggles] = useState<Record<LayerKey, boolean>>({
-    events: true, quakes: true, iss: true, flights: true, ships: true, webcams: false,
+    events: true, quakes: true, iss: true, flights: true, ships: true, webcams: false, cctv: false,
   });
   const [isolate, setIsolate] = useState<LayerKey | null>(null);
   const [autoRotate, setAutoRotate] = useState(true);
@@ -152,6 +153,7 @@ export function EarthViewHome() {
     flights: live.flights.length,
     ships: live.ships.length,
     webcams: live.webcams.length,
+    cctv: live.cctv.length,
   };
 
   const activeToggles = useMemo(() => {
@@ -169,6 +171,7 @@ export function EarthViewHome() {
     if (activeToggles.flights) out.push({ id: "flights", color: LAYER_META.flights.color, items: live.flights.slice(0, 2000), radius: 2, icon: "plane" });
     if (activeToggles.ships) out.push({ id: "ships", color: LAYER_META.ships.color, items: live.ships.slice(0, 500), radius: 3 });
     if (activeToggles.webcams) out.push({ id: "webcams", color: LAYER_META.webcams.color, items: live.webcams, radius: 4 });
+    if (activeToggles.cctv) out.push({ id: "cctv", color: LAYER_META.cctv.color, items: live.cctv, radius: 4 });
     return out;
   }, [activeToggles, live]);
 

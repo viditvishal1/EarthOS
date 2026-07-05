@@ -23,6 +23,8 @@ All keys are prefixed `argus:cache:` internally.
 | `live:flights:{region}` | 180s | 24h | OpenSky / adsb.lol / Wingbits |
 | `live:ships:global` | 180s | 24h | AISHub |
 | `live:webcams:all` | 24h | 24h | Curated + Windy |
+| `live:cctv:all` | 600s | 24h | TfL / WSDOT / Caltrans / NYC / VicRoads |
+| `live:cctv:{source}` | 600s | 24h | Per-agency snapshot (`tfl`, `wsdot`, …) |
 | `live:iss:position` | 120s | 24h | wheretheiss.at |
 | `live:module:{name}` | 90s–1h | 24h | Connector bundles |
 | `lock:live-seed` | 240s | — | Distributed cron lock |
@@ -33,6 +35,7 @@ All keys are prefixed `argus:cache:` internally.
 2. `CRON_SECRET` — protects `/api/cron/live` via `Authorization: Bearer`
 3. `AISHUB_API_KEY` — required for vessel positions
 4. Optional: `WINGBITS_API_KEY`, `WINDY_WEBCAMS_API_KEY`, `TOMTOM_API_KEY`
+5. CCTV: keyless by default (`CCTV_ENABLE_*` toggles). Optional: `TFL_APP_KEY`, `WSDOT_ACCESS_CODE`, `NYC_511_API_KEY`, `VICROADS_CAMERAS_URL`
 
 Never use `NEXT_PUBLIC_` for Redis or `CRON_SECRET`.
 
@@ -66,4 +69,6 @@ curl -sS -H "Authorization: Bearer <CRON_SECRET>" \
 
 ## Bootstrap endpoint
 
-`GET /api/bootstrap` — single hydration call for Earth View / Dashboard (flights, ships, webcams, ISS, module bundles). Returns `stale`, `cold`, `updatedAt`, `ageSeconds`, `source`, `hydratedMs`.
+`GET /api/bootstrap` — single hydration call for Earth View / Dashboard (flights, ships, webcams, CCTV, ISS, module bundles). Returns `stale`, `cold`, `updatedAt`, `ageSeconds`, `source`, `hydratedMs`.
+
+`GET /api/cctv` — Redis-read-only traffic camera snapshots (`?region=`, `?source=`). No upstream agency calls.

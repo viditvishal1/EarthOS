@@ -4,7 +4,6 @@ import { LIVE_SOFT_TTL, SEED_META_DOMAINS } from "@/lib/live/config";
 import { readModuleLiveCached } from "@/lib/live/module-cache";
 import { readAllSeedMeta, readSeedAttempt } from "@/lib/live/seed-meta";
 import { readLiveCached } from "@/lib/live/store";
-import type { Item } from "@/lib/types";
 
 export type LiveKeyState = "missing" | "fresh" | "stale";
 
@@ -41,12 +40,14 @@ export async function buildLiveDataHealth() {
       const ttlKey = domain.startsWith("flights:") ? "flights"
         : domain.startsWith("ships:") ? "ships"
         : domain.startsWith("webcams:") ? "webcams"
+        : domain.startsWith("cctv:") ? "cctv"
         : "iss";
       const source = domain.startsWith("flights:") ? "OpenSky/adsb.lol/Wingbits"
         : domain.startsWith("ships:") ? "AISHub"
         : domain.startsWith("webcams:") ? "Curated + Windy"
+        : domain.startsWith("cctv:") ? "TfL/WSDOT/Caltrans/NYC/VicRoads"
         : "wheretheiss.at";
-      const r = await readLiveCached<Item[]>(
+      const r = await readLiveCached<unknown[]>(
         domain,
         { ttlSeconds: LIVE_SOFT_TTL[ttlKey as keyof typeof LIVE_SOFT_TTL], source, fallback: [] },
       );

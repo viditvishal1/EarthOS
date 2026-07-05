@@ -27,6 +27,7 @@ vi.mock("@/lib/live/seed-cron", () => ({
     flights: { global: 10 },
     ships: 5,
     webcams: 3,
+    cctv: 42,
     iss: 1,
     modules: {},
   }),

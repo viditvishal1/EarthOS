@@ -73,6 +73,13 @@ async function main() {
     fail(`Bootstrap flights empty (cold=${bootstrap.body?.flights?.cold})`);
   }
 
+  const cctvCount = bootstrap.body?.cctv?.cameras?.length ?? 0;
+  if (cctvCount > 0) {
+    pass(`Bootstrap CCTV cameras: ${cctvCount}`);
+  } else {
+    console.log(`  · CCTV cache empty (cold=${bootstrap.body?.cctv?.cold}) — TfL may need cron warm`);
+  }
+
   console.log(failed === 0 ? "\nAll checks passed." : `\n${failed} check(s) failed.`);
   process.exit(failed === 0 ? 0 : 1);
 }

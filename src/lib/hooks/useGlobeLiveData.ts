@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Item } from "@/lib/types";
+import type { CctvCamera } from "@/lib/live/cctv/types";
 
 export interface GlobeLiveMeta {
   flightsUpdatedAt?: string | null;
@@ -17,6 +18,7 @@ interface BootstrapPayload {
   flights?: { global?: Item[]; stale?: boolean; ageSeconds?: number | null; updatedAt?: string | null };
   ships?: { items?: Item[]; stale?: boolean; ageSeconds?: number | null };
   webcams?: { items?: Array<{ id: string; title: string; place?: string; lat?: number; lon?: number; url: string; provider: string }> };
+  cctv?: { cameras?: CctvCamera[]; stale?: boolean; cold?: boolean };
   iss?: { lat: number; lon: number; altitudeKm?: number; velocityKmh?: number; timestamp?: string } | null;
   modules?: Record<string, { items?: Item[]; stale?: boolean }>;
   hydratedMs?: number;
@@ -43,12 +45,38 @@ function webcamToItem(w: {
   };
 }
 
+export function cctvToItem(c: CctvCamera): Item {
+  const mins = Math.max(1, Math.round(c.refreshSeconds / 60));
+  return {
+    id: c.id,
+    module: "live",
+    connectorId: "cctv",
+    title: c.title,
+    summary: `Snapshot · updated every ~${mins} min · ${c.region}`,
+    source: c.source,
+    timestamp: c.lastSeenAt,
+    lat: c.lat,
+    lon: c.lng,
+    url: c.imageUrl,
+    tags: ["cctv", "snapshot", c.source],
+    entities: [{ name: c.region, type: "location" }],
+    contentPolicy: "metadata_only",
+    extra: {
+      imageUrl: c.imageUrl,
+      refreshSeconds: c.refreshSeconds,
+      cctvStatus: c.status,
+      snapshot: true,
+    },
+  };
+}
+
 export function useGlobeLiveData(region = "global") {
   const [quakes, setQuakes] = useState<Item[]>([]);
   const [events, setEvents] = useState<Item[]>([]);
   const [flights, setFlights] = useState<Item[]>([]);
   const [ships, setShips] = useState<Item[]>([]);
   const [webcams, setWebcams] = useState<Item[]>([]);
+  const [cctv, setCctv] = useState<Item[]>([]);
   const [iss, setIss] = useState<Item[]>([]);
   const [meta, setMeta] = useState<GlobeLiveMeta>({});
   const [loading, setLoading] = useState(true);
@@ -73,6 +101,7 @@ export function useGlobeLiveData(region = "global") {
         .map(webcamToItem)
         .filter((x): x is Item => x != null),
     );
+    setCctv((data.cctv?.cameras ?? []).map(cctvToItem));
 
     if (data.iss && typeof data.iss.lat === "number") {
       setIss([{
@@ -115,12 +144,13 @@ export function useGlobeLiveData(region = "global") {
       /* fallback to individual endpoints */
     }
 
-    const [earthRes, flightRes, shipRes, issRes, webcamRes] = await Promise.allSettled([
+    const [earthRes, flightRes, shipRes, issRes, webcamRes, cctvRes] = await Promise.allSettled([
       fetch("/api/modules/earth").then((r) => r.json()),
       fetch(`/api/flights?region=${region}`).then((r) => r.json()),
       fetch("/api/ships").then((r) => r.json()),
       fetch("/api/iss").then((r) => r.json()),
       fetch("/api/webcams").then((r) => r.json()),
+      fetch("/api/cctv").then((r) => r.json()),
     ]);
 
     if (earthRes.status === "fulfilled") {
@@ -162,6 +192,9 @@ export function useGlobeLiveData(region = "global") {
           .filter((x): x is Item => x != null),
       );
     }
+    if (cctvRes.status === "fulfilled") {
+      setCctv(((cctvRes.value.cameras ?? []) as CctvCamera[]).map(cctvToItem));
+    }
     setLoading(false);
   }, [applyBootstrap, region]);
 
@@ -171,5 +204,5 @@ export function useGlobeLiveData(region = "global") {
     return () => clearInterval(t);
   }, [load]);
 
-  return { quakes, events, flights, ships, webcams, iss, meta, loading, refresh: load };
+  return { quakes, events, flights, ships, webcams, cctv, iss, meta, loading, refresh: load };
 }
