@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isAishubConfigured, isMapplsConfigured, isTomtomConfigured } from "@/lib/platform/integrations";
+import { isAishubConfigured, isGeminiConfigured, isMapplsConfigured, isTomtomConfigured } from "@/lib/platform/integrations";
 
 describe("integrations config", () => {
   it("detects AISHub key presence", () => {
@@ -28,5 +28,13 @@ describe("integrations config", () => {
     process.env.MAPMYINDIA_API_KEY = "test";
     expect(isMapplsConfigured()).toBe(true);
     delete process.env.MAPMYINDIA_API_KEY;
+  });
+
+  it("detects Gemini key presence", () => {
+    delete process.env.GEMINI_API_KEY;
+    expect(isGeminiConfigured()).toBe(false);
+    process.env.GEMINI_API_KEY = "test";
+    expect(isGeminiConfigured()).toBe(true);
+    delete process.env.GEMINI_API_KEY;
   });
 });

@@ -36,6 +36,10 @@ export function isMapplsConfigured(): boolean {
   );
 }
 
+export function isGeminiConfigured(): boolean {
+  return Boolean(process.env.GEMINI_API_KEY?.trim());
+}
+
 function shipsState(
   configured: boolean,
   count: number,
@@ -53,6 +57,7 @@ export async function buildIntegrationsSnapshot(): Promise<IntegrationStatus[]> 
   const aishubConfigured = isAishubConfigured();
   const tomtomConfigured = isTomtomConfigured();
   const mapplsConfigured = isMapplsConfigured();
+  const geminiConfigured = isGeminiConfigured();
 
   let shipsCount = 0;
   let shipsStale = true;
@@ -100,6 +105,14 @@ export async function buildIntegrationsSnapshot(): Promise<IntegrationStatus[]> 
       state: mapplsConfigured ? "ready" : "key-required",
       coverage: "India basemap + live traffic (MapMyIndia) on City Twin",
       uiPath: "/city",
+    },
+    {
+      id: "gemini",
+      label: "Google Gemini AI",
+      configured: geminiConfigured,
+      state: geminiConfigured ? "ready" : "key-required",
+      coverage: "AI Analyst, search briefings, graph reasoning, market insights",
+      uiPath: "/analyst",
     },
   ];
 }
