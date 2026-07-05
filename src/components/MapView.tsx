@@ -177,6 +177,7 @@ function planeImage(color: string): ImageData {
 export function MapView({
   layers, lines = [], onSelect, onLocationPick, pin, center = [10, 25], zoom = 1.6, className,
   defaultBasemap = "dark", defaultGlobe = false, maxZoom = 19,
+  autoRotate = false, rotateSpeed = 0.05, onMove,
 }: {
   layers: MapLayer[];
   lines?: MapLine[];
@@ -189,6 +190,9 @@ export function MapView({
   defaultBasemap?: BasemapId;
   defaultGlobe?: boolean;
   maxZoom?: number;
+  autoRotate?: boolean; // slow bearing spin; pauses on interaction, resumes idle
+  rotateSpeed?: number; // degrees of bearing per animation frame tick
+  onMove?: (s: { lat: number; lon: number; zoom: number }) => void; // center/zoom readout
 }) {
   const el = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
@@ -204,8 +208,12 @@ export function MapView({
   const pinRef = useRef(pin);
   pinRef.current = pin;
 
+  const onMoveRef = useRef(onMove);
+  onMoveRef.current = onMove;
+
   const [basemap, setBasemap] = useState<BasemapId>(defaultBasemap);
-  const [globe, setGlobe] = useState(defaultGlobe);
+  // A rotating flat map looks wrong — auto-rotate implies the sphere.
+  const [globe, setGlobe] = useState(defaultGlobe || autoRotate);
   const [terrain, setTerrain] = useState(false);
   const globeRef = useRef(globe);
   globeRef.current = globe;
@@ -362,10 +370,54 @@ export function MapView({
     map.on("click", (e) => {
       if (onLocationPickRef.current) onLocationPickRef.current(e.lngLat.lat, e.lngLat.lng);
     });
+    const emitMove = () => {
+      const c = map.getCenter();
+      onMoveRef.current?.({ lat: c.lat, lon: c.lng, zoom: map.getZoom() });
+    };
+    map.on("move", emitMove);
     mapRef.current = map;
     return () => { map.remove(); mapRef.current = null; knownLayers.current.clear(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Auto-rotate loop — pauses on user interaction, resumes after 4s idle.
+  // Honors prefers-reduced-motion (globe stays still).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !autoRotate) return;
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+
+    let frame = 0;
+    let interacting = false;
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const spin = () => {
+      if (!interacting) map.setBearing((map.getBearing() + rotateSpeed) % 360);
+      frame = requestAnimationFrame(spin);
+    };
+    const pause = () => { interacting = true; if (idleTimer) clearTimeout(idleTimer); };
+    const resume = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => { interacting = false; }, 4000);
+    };
+
+    map.on("dragstart", pause);
+    map.on("zoomstart", pause);
+    map.on("dragend", resume);
+    map.on("zoomend", resume);
+    map.on("wheel", pause);
+    frame = requestAnimationFrame(spin);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      map.off("dragstart", pause);
+      map.off("zoomstart", pause);
+      map.off("dragend", resume);
+      map.off("zoomend", resume);
+      map.off("wheel", pause);
+      if (idleTimer) clearTimeout(idleTimer);
+    };
+  }, [autoRotate, rotateSpeed]);
 
   // Data layers changed.
   useEffect(() => {

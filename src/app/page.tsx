@@ -12,6 +12,7 @@ import { computeSituations } from "@/lib/situation";
 import type { Item } from "@/lib/types";
 import { ItemCard, timeAgo } from "@/components/ModuleView";
 import { ReaderPane } from "@/components/ReaderPane";
+import { GlobeDashboard } from "@/components/GlobeDashboard";
 
 interface Stats {
   quakes24h?: number;
@@ -27,6 +28,8 @@ const FEED_MODULES = ["earth", "cyber", "news", "conflict", "infrastructure", "m
 export default function SituationRoom() {
   const [stats, setStats] = useState<Stats>({});
   const [pool, setPool] = useState<Item[]>([]);
+  const [flights, setFlights] = useState<Item[]>([]);
+  const [iss, setIss] = useState<Item[]>([]);
   const [selected, setSelected] = useState<Item | null>(null);
   const [fetchedAt, setFetchedAt] = useState<string>();
 
@@ -67,9 +70,27 @@ export default function SituationRoom() {
       setStats(s);
       setPool(all);
     });
+
+    // Globe-only live layers (not part of the situation pool).
+    fetch("/api/flights?region=global").then((r) => r.json()).then((d) => setFlights(d.items ?? [])).catch(() => {});
+    fetch("/api/iss").then((r) => r.json()).then((d) => {
+      if (typeof d.lat !== "number") return;
+      setIss([{
+        id: "iss", module: "space", connectorId: "iss", title: "International Space Station",
+        summary: d.altitudeKm != null ? `Altitude ${d.altitudeKm.toFixed(0)} km · ${d.velocityKmh?.toFixed(0)} km/h` : undefined,
+        source: "wheretheiss.at", timestamp: d.timestamp, lat: d.lat, lon: d.lon,
+        tags: ["iss"], entities: [], contentPolicy: "full_cache",
+      }]);
+    }).catch(() => {});
   }, []);
 
   const situations = useMemo(() => computeSituations(pool, { limit: 6 }), [pool]);
+
+  const globeQuakes = useMemo(() => pool.filter((i) => i.tags.includes("earthquake")), [pool]);
+  const globeEvents = useMemo(
+    () => pool.filter((i) => typeof i.lat === "number" && !i.tags.includes("earthquake")),
+    [pool],
+  );
 
   const feed = useMemo(
     () =>
@@ -88,7 +109,11 @@ export default function SituationRoom() {
   );
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="mx-auto max-w-[1600px]">
+      <div className="mb-4">
+        <GlobeDashboard quakes={globeQuakes} flights={flights} events={globeEvents} iss={iss} />
+      </div>
+
       <div className="mb-5">
         <h1 className="text-xl font-semibold text-ink">
           Situation Room <span className="text-ink-dim">· cross-stream convergence on public data</span>

@@ -1,43 +1,65 @@
 @import "tailwindcss";
 @import "maplibre-gl/dist/maplibre-gl.css";
 
-/* EarthOS design system — dark "command center" default plus a light theme
-   modeled on the Sarvam AI design language: deep indigo ink (#1e2033) on
-   warm off-white (#f0f1f5) surfaces with an indigo accent (#6366f1). */
+/* Argus design system — dark "command center" default (neon-green accent on
+   near-black, matching the auto-rotating globe HUD) plus a warm light theme
+   (terracotta accent on off-white). Every legacy variable name is preserved;
+   the status/HUD tokens are additive. */
 
 @theme inline {
   --color-body: var(--t-body);
   --color-panel: var(--t-panel);
   --color-panel-2: var(--t-panel-2);
+  --color-panel-hud: var(--t-panel-hud);
   --color-line: var(--t-line);
+  --color-line-strong: var(--t-line-strong);
   --color-ink: var(--t-ink);
   --color-ink-dim: var(--t-ink-dim);
   --color-soft: var(--t-soft);
   --color-accent: var(--t-accent);
+  --color-accent-2: var(--t-accent-2);
+  --color-critical: var(--t-critical);
+  --color-warning: var(--t-warning);
+  --color-live: var(--t-live);
+  --color-info: var(--t-info);
 }
 
 :root,
 [data-theme="dark"] {
-  --t-body: #0a0d12;
-  --t-panel: #101318;
-  --t-panel-2: #161b22;
-  --t-line: #232a33;
-  --t-ink: #e6edf3;
-  --t-ink-dim: #8b98a5;
-  --t-soft: #b8c2cc;
-  --t-accent: #4cc2ff;
+  --t-body: #05070a;
+  --t-panel: #0b0f14;
+  --t-panel-2: #11161d;
+  --t-panel-hud: rgba(10, 14, 18, 0.82);
+  --t-line: #1c2530;
+  --t-line-strong: #2a3542;
+  --t-ink: #e7ede2;
+  --t-ink-dim: #7c8a80;
+  --t-soft: #a9b6ac;
+  --t-accent: #39ff8f;
+  --t-accent-2: #4cc2ff;
+  --t-critical: #ff4d5e;
+  --t-warning: #ffb545;
+  --t-live: #39ff8f;
+  --t-info: #8b8bff;
   color-scheme: dark;
 }
 
 [data-theme="light"] {
-  --t-body: #f0f1f5;
+  --t-body: #f3f1ec;
   --t-panel: #ffffff;
-  --t-panel-2: #f5f6fa;
-  --t-line: #dcdfe8;
-  --t-ink: #1e2033;
-  --t-ink-dim: #5c6280;
-  --t-soft: #3a3f5c;
-  --t-accent: #6366f1;
+  --t-panel-2: #f7f6f2;
+  --t-panel-hud: rgba(255, 255, 255, 0.9);
+  --t-line: #e4e1d8;
+  --t-line-strong: #cfcabf;
+  --t-ink: #211f1a;
+  --t-ink-dim: #6b675e;
+  --t-soft: #4a473f;
+  --t-accent: #c9622a;
+  --t-accent-2: #5b5fe0;
+  --t-critical: #c0392b;
+  --t-warning: #b8842c;
+  --t-live: #3f8f5f;
+  --t-info: #5b5fe0;
   color-scheme: light;
 }
 
@@ -46,6 +68,44 @@ body {
   color: var(--t-ink);
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", sans-serif;
+}
+
+/* Globe backdrop — swaps per theme, referenced by GlobeDashboard / Earth View */
+.globe-backdrop {
+  background: radial-gradient(circle at 50% 35%, #0d1a14 0%, #05070a 60%, #000 100%);
+}
+[data-theme="light"] .globe-backdrop {
+  background: radial-gradient(circle at 50% 35%, #ffffff 0%, #f3f1ec 55%, #eae6da 100%);
+}
+
+/* HUD floating windows */
+.hud-window {
+  background: var(--t-panel-hud);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--t-line);
+}
+
+/* Status dot pulse — used for "live" badges/markers only */
+@keyframes hud-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.hud-pulse { animation: hud-pulse 1.6s ease-in-out infinite; }
+
+/* Bottom ticker marquee */
+.ticker-track {
+  display: inline-flex;
+  gap: 2.5rem;
+  animation: ticker-scroll 45s linear infinite;
+}
+.ticker-track:hover { animation-play-state: paused; }
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-pulse, .ticker-track { animation: none; }
 }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
