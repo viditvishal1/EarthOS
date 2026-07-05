@@ -125,6 +125,19 @@ export const MAP_LAYER_REGISTRY: MapLayerDefinition[] = [
     refreshSeconds: 120,
     coverage: "Single platform",
   },
+  {
+    id: "satellites",
+    label: "Satellites",
+    color: "#c4b5fd",
+    category: "space",
+    renderer: "symbol",
+    dataDependencies: ["celestrak"],
+    defaultVisible: false,
+    mobileDefault: false,
+    attribution: "CelesTrak / SGP4",
+    refreshSeconds: 7200,
+    coverage: "TLE-propagated (stations default)",
+  },
 ];
 
 const byId = new Map(MAP_LAYER_REGISTRY.map((l) => [l.id, l]));

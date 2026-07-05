@@ -1,4 +1,4 @@
-# Argus Architecture (World Monitor transformation — Phase 0–1)
+# Argus Architecture (World Monitor transformation — Phase 0–3, 4–5)
 
 Argus adopts World Monitor **patterns** (panel registry, map layer registry, provider gateway, seed/read cache) without copying AGPL code.
 
@@ -35,8 +35,11 @@ Provider (public API) → connector fetch → validate → normalize Item
 - `GET /api/v1/tracks/flights` — viewport flight tracks (no fabricated routes)
 - `GET /api/v1/tracks/flights/:icao24` — aircraft detail
 - `GET /api/v1/stream` — SSE flight count deltas
+- `GET /api/v1/satellites` — CelesTrak TLE catalog + optional SGP4 positions
+- `GET /api/v1/satellites/:norad/passes` — local pass prediction from cached TLE
+- `GET /api/v1/cameras` — agency CCTV snapshots (bbox/provider filters, allowlisted URLs)
 - `GET /api/bootstrap` — client hydration bundle
 
 ## Phased roadmap
 
-See blueprint package `Argus_WorldMonitor_Blueprint.md` for Phases 2–8 (observations API, OpenSky OAuth, AISStream, auth/alerts, hardening).
+See blueprint package `Argus_WorldMonitor_Blueprint.md` for Phases 6–8 (markets, auth/alerts, hardening).

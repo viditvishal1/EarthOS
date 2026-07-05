@@ -12,10 +12,8 @@ Authoritative registry: `src/lib/connectors/registry.ts` (derived from `argus_da
 | ReliefWeb RSS | — | excerpt |
 | OpenSky (anonymous) | optional `OPENSKY_CLIENT_ID/SECRET` | metadata |
 | FAA status / NOTAMs | — | metadata |
-| CelesTrak | — | full_cache |
-| NVD / CISA KEV | optional `NVD_API_KEY` | metadata |
-| World Bank | — | metadata |
-| TfL CCTV | optional `TFL_APP_KEY` | metadata (snapshots) |
+| CelesTrak TLE | — | full_cache (SGP4 propagation local) |
+| Agency CCTV (TfL/WSDOT/Caltrans/NYC/VicRoads) | see CCTV env toggles | image snapshots only |
 
 ## Opt-in (keys required)
 

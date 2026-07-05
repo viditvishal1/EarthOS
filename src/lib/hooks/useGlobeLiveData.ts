@@ -65,6 +65,7 @@ export function cctvToItem(c: CctvCamera): Item {
       imageUrl: c.imageUrl,
       refreshSeconds: c.refreshSeconds,
       cctvStatus: c.status,
+      legalMode: "image" as const,
       snapshot: true,
     },
   };

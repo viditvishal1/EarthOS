@@ -8,6 +8,7 @@ export const LIVE_SOFT_TTL = {
   iss: 120,
   webcams: 86_400,
   cctv: 600,
+  satellites: 7200,
 } as const;
 
 export const MODULE_SOFT_TTL: Record<string, number> = {
@@ -43,6 +44,8 @@ export const SEED_META_DOMAINS = [
   "webcams:all",
   "cctv:all",
   "iss:position",
+  "satellites:tle:stations",
+  "satellites:positions:stations",
   "module:markets",
   "module:earth",
 ] as const;

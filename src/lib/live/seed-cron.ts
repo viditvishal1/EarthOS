@@ -6,6 +6,7 @@ import { writeSeedMeta } from "@/lib/live/seed-meta";
 import { fetchAllWebcams } from "@/lib/live/webcams";
 import { seedAllCctv } from "@/lib/live/cctv/seed";
 import { seedObservationsBundle } from "@/lib/observations/service";
+import { seedDefaultSatellites } from "@/lib/satellites/store";
 import {
   FLIGHT_SEED_REGIONS,
   LIVE_SOFT_TTL,
@@ -346,6 +347,29 @@ export async function seedLiveDomains(): Promise<SeedLiveDomainsResult> {
   }
 
   domains.push(await seedIss());
+
+  const satStarted = Date.now();
+  try {
+    const sat = await seedDefaultSatellites();
+    domains.push({
+      domain: "satellites:tle:stations",
+      status: sat.total > 0 ? "ok" : "skipped",
+      count: sat.total,
+      source: "CelesTrak/SGP4",
+      durationMs: Date.now() - satStarted,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    domains.push({
+      domain: "satellites:tle:stations",
+      status: "error",
+      count: 0,
+      source: "CelesTrak/SGP4",
+      durationMs: Date.now() - satStarted,
+      errorCode: "seed_failed",
+      errorMessage: message.slice(0, 200),
+    });
+  }
 
   for (const batch of chunk(SEED_MODULES, 2)) {
     const results = await Promise.all(batch.map((m) => seedModuleDomain(m)));

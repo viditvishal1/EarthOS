@@ -1,7 +1,9 @@
+import { queryCameras } from "@/lib/cameras/service";
 import { fetchFlights, fetchFlightsByBbox } from "@/lib/connectors/aviation";
 import { readLiveCached } from "@/lib/live/store";
 import { LIVE_SOFT_TTL } from "@/lib/live/config";
 import { getObservations } from "@/lib/observations/service";
+import { readSatellitePositionsInBbox } from "@/lib/satellites/store";
 import { clusterPoints, filterByViewport, parseViewport, type MapPoint, type ViewportQuery } from "@/lib/maps/viewport";
 import type { Item } from "@/lib/types";
 
@@ -75,6 +77,56 @@ export async function fetchViewportLayers(
     const quakes = cached.data.filter((i) => i.tags.includes("earthquake"));
     const points = filterByViewport(itemsToPoints(quakes, "earth"), vp);
     out.quakes = { count: points.length, points, provider: "USGS/EONET" };
+  }
+
+  if (layers.includes("satellites")) {
+    const bbox: [number, number, number, number] = [vp.west, vp.south, vp.east, vp.north];
+    const sat = await readSatellitePositionsInBbox(bbox, vp.limit ?? 200);
+    const points = filterByViewport(
+      sat.points.map((p) => ({
+        id: `sat:${p.noradId}`,
+        lat: p.lat,
+        lon: p.lng,
+        label: p.name,
+        module: "space",
+        extra: {
+          noradId: p.noradId,
+          altKm: p.altKm,
+          epochAgeHours: p.epochAgeHours,
+          stale: p.stale,
+        },
+      })),
+      vp,
+    );
+    out.satellites = { count: points.length, points, provider: sat.provider, partial: sat.partial };
+  }
+
+  if (layers.includes("cctv") || layers.includes("cameras")) {
+    const cam = await queryCameras({
+      west: vp.west,
+      south: vp.south,
+      east: vp.east,
+      north: vp.north,
+      limit: vp.limit ?? 300,
+    });
+    const points = filterByViewport(
+      cam.cameras.map((c) => ({
+        id: c.id,
+        lat: c.lat,
+        lon: c.lng,
+        label: c.title,
+        module: "live",
+        extra: {
+          provider: c.provider,
+          legalMode: c.legalMode,
+          imageUrl: c.imageUrl,
+          status: c.status,
+          healthReason: c.healthReason,
+        },
+      })),
+      vp,
+    );
+    out.cameras = { count: points.length, points, provider: cam.source };
   }
 
   return out;
