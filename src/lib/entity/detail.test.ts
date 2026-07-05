@@ -44,9 +44,41 @@ describe("extractEntityFields", () => {
     const fields = extractEntityFields(flightItem);
     const labels = fields.map((f) => f.label);
     expect(labels).toContain("ICAO hex");
-    expect(labels).toContain("Heading");
+    expect(labels).toContain("Callsign");
+    expect(labels).toContain("Track");
     expect(labels).toContain("Altitude");
     expect(fields.find((f) => f.label === "ICAO hex")?.value).toBe("ABC123");
+  });
+
+  it("shows enriched route when provided", () => {
+    const fields = extractEntityFields(flightItem, {
+      icao24: "abc123",
+      callsign: "UAL123",
+      provenance: {
+        routeKnown: true,
+        route: "EWR-CLT",
+        origin: "KEWR",
+        destination: "KCLT",
+        squawk: "1200",
+        verticalRateFpm: 1500,
+        rssi: -12.5,
+        seenSeconds: 2,
+      },
+      route: {
+        callsign: "UAL123",
+        airportCodes: "KEWR-KCLT",
+        airportCodesIata: "EWR-CLT",
+        airports: [
+          { icao: "KEWR", iata: "EWR", name: "Newark", lat: 40, lon: -74 },
+          { icao: "KCLT", iata: "CLT", name: "Charlotte", lat: 35, lon: -81 },
+        ],
+      },
+      imageUrl: null,
+      provider: "adsb.lol",
+      fetchedAt: new Date().toISOString(),
+    });
+    expect(fields.find((f) => f.label === "Route")?.value).toBe("EWR-CLT");
+    expect(fields.find((f) => f.label === "Squawk")?.value).toBe("1200");
   });
 });
 

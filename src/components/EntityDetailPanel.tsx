@@ -1,14 +1,16 @@
 "use client";
 
-import { ExternalLink, X } from "lucide-react";
+import { ExternalLink, LoaderCircle, X } from "lucide-react";
 import type { Item } from "@/lib/types";
 import { Badge } from "@/components/Badge";
 import { EntityChip } from "@/components/EntityChip";
 import {
   detectEntityKind,
   entityKindLabel,
+  entityImageUrl,
   extractEntityFields,
 } from "@/lib/entity/detail";
+import { useFlightEnrichment } from "@/lib/hooks/useFlightEnrichment";
 
 function SeverityBadge({ item }: { item: Item }) {
   if (!item.severityLabel) return null;
@@ -25,12 +27,7 @@ function SeverityBadge({ item }: { item: Item }) {
   );
 }
 
-function PreviewMedia({ item }: { item: Item }) {
-  const kind = detectEntityKind(item);
-  const imageUrl =
-    (typeof item.extra?.imageUrl === "string" ? item.extra.imageUrl : null)
-    ?? (kind === "webcam" && item.url ? item.url : null);
-
+function PreviewMedia({ item, imageUrl }: { item: Item; imageUrl: string | null }) {
   if (!imageUrl) return null;
 
   return (
@@ -46,16 +43,27 @@ function PreviewMedia({ item }: { item: Item }) {
   );
 }
 
-function MetadataGrid({ fields }: { fields: { label: string; value: string; mono?: boolean }[] }) {
+function MetadataGrid({ fields }: { fields: { label: string; value: string; mono?: boolean; highlight?: boolean }[] }) {
   return (
-    <dl className="grid grid-cols-[minmax(5.5rem,auto)_1fr] gap-x-3 gap-y-1.5 text-[11px]">
+    <dl className="grid grid-cols-[minmax(5.5rem,auto)_1fr] gap-x-3 gap-y-1 text-[11px]">
       {fields.map((f) => (
         <div key={f.label} className="contents">
           <dt className="text-ink-dim">{f.label}</dt>
-          <dd className={`text-ink ${f.mono ? "mono" : ""}`}>{f.value}</dd>
+          <dd className={`text-ink ${f.mono ? "mono" : ""} ${f.highlight ? "font-medium text-accent" : ""}`}>
+            {f.value}
+          </dd>
         </div>
       ))}
     </dl>
+  );
+}
+
+function RouteBanner({ route }: { route: string }) {
+  return (
+    <div className="mb-3 rounded-md border border-accent/30 bg-accent/5 px-2.5 py-2">
+      <div className="text-[9px] uppercase tracking-widest text-ink-dim">Route</div>
+      <div className="mono text-[13px] font-semibold tracking-wide text-accent">{route}</div>
+    </div>
   );
 }
 
@@ -69,8 +77,13 @@ export function EntityDetailPanel({
   className?: string;
 }) {
   const kind = detectEntityKind(item);
-  const fields = extractEntityFields(item);
+  const { enrichment, loading } = useFlightEnrichment(kind === "flight" ? item : null);
+  const fields = extractEntityFields(item, enrichment);
+  const imageUrl = entityImageUrl(item, enrichment);
   const showSummary = item.summary && item.summary !== item.title;
+
+  const routeField = fields.find((f) => f.label === "Route" && f.highlight);
+  const detailFields = fields.filter((f) => f.label !== "Route" || !f.highlight);
 
   return (
     <div
@@ -86,6 +99,11 @@ export function EntityDetailPanel({
             </span>
             <SeverityBadge item={item} />
             <Badge tone="info">{item.source}</Badge>
+            {loading && (
+              <span className="flex items-center gap-1 text-[10px] text-ink-dim">
+                <LoaderCircle className="h-3 w-3 animate-spin" /> enriching
+              </span>
+            )}
           </div>
           <h2 className="truncate text-[15px] font-semibold leading-snug text-ink">{item.title}</h2>
         </div>
@@ -100,7 +118,11 @@ export function EntityDetailPanel({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
-        <PreviewMedia item={item} />
+        {routeField && routeField.value !== "Unknown (ADS-B state only)" && (
+          <RouteBanner route={routeField.value} />
+        )}
+
+        <PreviewMedia item={item} imageUrl={imageUrl} />
 
         {showSummary && (
           <p className="mb-3 text-[12px] leading-relaxed text-soft">{item.summary}</p>
@@ -112,7 +134,7 @@ export function EntityDetailPanel({
           </pre>
         )}
 
-        <MetadataGrid fields={fields} />
+        <MetadataGrid fields={detailFields} />
 
         {item.entities.length > 0 && (
           <div className="mt-3 border-t border-line pt-2.5">
@@ -135,11 +157,22 @@ export function EntityDetailPanel({
             Open live feed <ExternalLink className="h-3 w-3" />
           </a>
         )}
+
+        {kind === "flight" && item.url && (
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 flex items-center gap-1 text-[11px] text-accent hover:underline"
+          >
+            Open on adsb.lol <ExternalLink className="h-3 w-3" />
+          </a>
+        )}
       </div>
 
       <div className="flex shrink-0 items-center justify-between border-t border-line px-3 py-2 text-[10px] text-ink-dim">
         <span className="mono truncate">{item.id}</span>
-        {item.url && kind !== "webcam" && kind !== "cctv" && (
+        {item.url && kind !== "webcam" && kind !== "cctv" && kind !== "flight" && (
           <a
             href={item.url}
             target="_blank"

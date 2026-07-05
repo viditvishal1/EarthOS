@@ -39,7 +39,17 @@ async function fetchAisHubBbox(
       tags: ["vessel", type.toLowerCase()],
       entities: [{ name, type: "vessel" }],
       contentPolicy: "full_cache",
-      extra: { mmsi: v.MMSI, type, destination: v.DEST, speedKn: v.SOG },
+      extra: {
+        mmsi: v.MMSI,
+        type,
+        destination: v.DEST,
+        speedKn: v.SOG,
+        cog: v.COG != null ? Number(v.COG) : undefined,
+        heading: v.HEADING != null ? Number(v.HEADING) : undefined,
+        imo: v.IMO,
+        eta: v.ETA,
+        navStatus: v.NAVSTAT != null ? Number(v.NAVSTAT) : undefined,
+      },
     };
   });
 }

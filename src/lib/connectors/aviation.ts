@@ -157,9 +157,31 @@ async function fetchOpenSky(region: string): Promise<Item[]> {
 }
 
 interface AdsbAircraft {
-  hex: string; flight?: string; r?: string; t?: string;
-  lat?: number; lon?: number; alt_baro?: number | "ground";
-  gs?: number; track?: number;
+  hex: string;
+  type?: string;
+  flight?: string;
+  r?: string;
+  t?: string;
+  lat?: number;
+  lon?: number;
+  alt_baro?: number | "ground";
+  alt_geom?: number;
+  gs?: number;
+  track?: number;
+  true_heading?: number;
+  mag_heading?: number;
+  baro_rate?: number;
+  squawk?: string;
+  seen?: number;
+  seen_pos?: number;
+  messages?: number;
+  rssi?: number;
+  wd?: number;
+  ws?: number;
+  oat?: number;
+  tat?: number;
+  emergency?: string;
+  category?: string;
 }
 
 /**
@@ -204,9 +226,31 @@ async function fetchAdsbLol(region: string, probesOverride?: [number, number][])
       callsign: ac.flight ?? ac.r,
       lat: ac.lat!,
       lon: ac.lon!,
-      altitudeM: typeof ac.alt_baro === "number" ? ac.alt_baro * 0.3048 : null,
+      altitudeM: typeof ac.alt_baro === "number"
+        ? ac.alt_baro * 0.3048
+        : typeof ac.alt_geom === "number"
+          ? ac.alt_geom * 0.3048
+          : null,
+      baroAltFt: typeof ac.alt_baro === "number" ? ac.alt_baro : null,
+      geomAltFt: ac.alt_geom ?? null,
       velocityMs: ac.gs != null ? ac.gs * 0.514444 : null,
-      heading: ac.track ?? null,
+      heading: ac.track ?? ac.true_heading ?? null,
+      track: ac.track ?? null,
+      trueHeading: ac.true_heading ?? null,
+      magHeading: ac.mag_heading ?? null,
+      verticalRateFpm: ac.baro_rate ?? null,
+      squawk: ac.squawk ?? null,
+      messageCount: ac.messages ?? null,
+      rssi: ac.rssi ?? null,
+      seenSeconds: ac.seen ?? null,
+      seenPosSeconds: ac.seen_pos ?? null,
+      adsbType: ac.type ?? null,
+      windDirection: ac.wd ?? null,
+      windSpeedKt: ac.ws ?? null,
+      oatC: ac.oat ?? null,
+      tatC: ac.tat ?? null,
+      emergency: ac.emergency && ac.emergency !== "none" ? ac.emergency : null,
+      category: ac.category ?? null,
       observedAt: new Date().toISOString(),
       provider: "adsb.lol",
       sourceUrl: `https://globe.adsb.lol/?icao=${ac.hex}`,

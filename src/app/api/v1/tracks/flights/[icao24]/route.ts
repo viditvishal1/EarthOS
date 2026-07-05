@@ -2,12 +2,14 @@ import { NextRequest } from "next/server";
 import { noCacheJson } from "@/lib/http/no-cache";
 import { readLiveCached } from "@/lib/live/store";
 import { LIVE_SOFT_TTL } from "@/lib/live/config";
-import { lookupAirport } from "@/lib/connectors/airports";
+import { enrichFlight } from "@/lib/aviation/adsb-enrichment";
+import { appendFlightHistory } from "@/lib/aviation/flight-history";
 import type { Item } from "@/lib/types";
+import type { FlightProvenance } from "@/lib/aviation/flight-record";
 
 export const dynamic = "force-dynamic";
 
-/** Single aircraft detail — no fabricated origin/destination/route. */
+/** Single aircraft track — live enrichment, route airports, position breadcrumb. */
 export async function GET(
   _req: NextRequest,
   ctx: { params: Promise<{ icao24: string }> },
@@ -30,41 +32,66 @@ export async function GET(
     if (flight) break;
   }
 
-  if (!flight) {
-    return noCacheJson({ error: "not_found", icao24: id }, { status: 404 });
+  const extra = (flight?.extra ?? {}) as Partial<FlightProvenance>;
+  const positionLat = flight?.lat ?? null;
+  const positionLon = flight?.lon ?? null;
+
+  const enrichment = await enrichFlight({
+    icao24: id,
+    callsign: flight?.title ?? extra.callsign,
+    lat: flight?.lat,
+    lon: flight?.lon,
+    cached: extra,
+  });
+
+  const prov = enrichment.provenance;
+
+  let history: { lat: number; lng: number; lon?: number; observedAt: string }[] = [];
+  if (typeof positionLat === "number" && typeof positionLon === "number") {
+    const trail = await appendFlightHistory(id, {
+      lat: positionLat,
+      lon: positionLon,
+      observedAt: flight?.timestamp ?? new Date().toISOString(),
+    });
+    history = trail.map((p) => ({ lat: p.lat, lng: p.lon, lon: p.lon, observedAt: p.observedAt }));
   }
 
-  const prefix = String(flight.extra?.inferredAirlinePrefix ?? "").toUpperCase();
-  let nearestAirport = null;
-  if (prefix.length === 3 && typeof flight.lat === "number") {
-    nearestAirport = await lookupAirport(prefix).catch(() => null);
-  }
+  const routeAirports = enrichment.route?.airports ?? [];
 
   return noCacheJson({
     aircraft: {
       icao24: id,
-      callsign: flight.title,
-      lat: flight.lat,
-      lng: flight.lon,
-      heading: flight.extra?.heading ?? null,
-      altitudeM: flight.extra?.altitudeM ?? null,
-      velocityMs: flight.extra?.velocityMs ?? null,
-      aircraftType: flight.extra?.aircraftType ?? null,
-      registration: flight.extra?.registration ?? null,
-      origin: null,
-      destination: null,
-      routeKnown: false,
-      originCountry: flight.extra?.originCountry ?? null,
-      observedAt: flight.timestamp,
-      provider: flight.source,
+      callsign: enrichment.callsign ?? flight?.title ?? null,
+      lat: positionLat,
+      lng: positionLon,
+      heading: prov.heading ?? prov.track ?? null,
+      altitudeM: prov.altitudeM ?? null,
+      baroAltFt: prov.baroAltFt ?? null,
+      geomAltFt: prov.geomAltFt ?? null,
+      velocityMs: prov.velocityMs ?? null,
+      verticalRateFpm: prov.verticalRateFpm ?? null,
+      squawk: prov.squawk ?? null,
+      aircraftType: prov.aircraftType ?? null,
+      registration: prov.registration ?? null,
+      origin: prov.origin ?? null,
+      destination: prov.destination ?? null,
+      route: prov.route ?? null,
+      routeKnown: Boolean(prov.routeKnown),
+      plausible: prov.plausible ?? null,
+      originCountry: prov.originCountry ?? null,
+      observedAt: prov.observedAt ?? flight?.timestamp ?? null,
+      provider: prov.provider ?? flight?.source ?? null,
+      messageCount: prov.messageCount ?? null,
+      rssi: prov.rssi ?? null,
+      seenSeconds: prov.seenSeconds ?? null,
+      windDirection: prov.windDirection ?? null,
+      windSpeedKt: prov.windSpeedKt ?? null,
+      oatC: prov.oatC ?? null,
+      imageUrl: enrichment.imageUrl,
     },
-    context: {
-      inferredAirlinePrefix: flight.extra?.inferredAirlinePrefix ?? null,
-      prefixIsAirportIcao: nearestAirport ? false : null,
-      note: "Free ADS-B state vectors do not include reliable flight number, aircraft type, or route.",
-    },
-    airports: nearestAirport ? [nearestAirport] : [],
-    history: [],
-    fetchedAt: new Date().toISOString(),
+    route: enrichment.route,
+    airports: routeAirports,
+    history,
+    fetchedAt: enrichment.fetchedAt,
   });
 }
