@@ -49,6 +49,8 @@ describe("redis-config", () => {
     expect(creds.scheme).toBe("vercel-kv");
     vi.unstubAllEnvs();
   });
+
+  it("never uses read-only KV token", () => {
     vi.stubEnv("KV_REST_API_URL", "https://kv.example");
     vi.stubEnv("KV_REST_API_TOKEN", "");
     vi.stubEnv("KV_REST_API_READ_ONLY_TOKEN", "read-only");
