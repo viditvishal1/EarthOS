@@ -2,6 +2,17 @@ import type { PanelDefinition } from "@/lib/panels/types";
 
 export const PANEL_REGISTRY: PanelDefinition[] = [
   {
+    key: "event-timeline",
+    title: "Threat Timeline",
+    category: "crisis",
+    componentId: "event-timeline",
+    defaultSize: { w: 4, h: 5 },
+    minSize: { w: 3, h: 3 },
+    dataDependencies: ["gdelt-doc", "reliefweb", "ucdp", "acled"],
+    mobile: "collapsed",
+    description: "Cross-source event clusters with corroboration counts",
+  },
+  {
     key: "globe-map",
     title: "Global Map",
     category: "map",

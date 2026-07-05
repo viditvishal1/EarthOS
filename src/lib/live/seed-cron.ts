@@ -5,6 +5,7 @@ import { seedModuleLive } from "@/lib/live/module-cache";
 import { writeSeedMeta } from "@/lib/live/seed-meta";
 import { fetchAllWebcams } from "@/lib/live/webcams";
 import { seedAllCctv } from "@/lib/live/cctv/seed";
+import { seedObservationsBundle } from "@/lib/observations/service";
 import {
   FLIGHT_SEED_REGIONS,
   LIVE_SOFT_TTL,
@@ -320,6 +321,30 @@ export async function seedLiveDomains(): Promise<SeedLiveDomainsResult> {
   domains.push(await seedShips());
   domains.push(await seedWebcams());
   domains.push(...await seedAllCctv());
+
+  const obsStarted = Date.now();
+  try {
+    const obsCount = await seedObservationsBundle();
+    domains.push({
+      domain: "observations:recent",
+      status: obsCount > 0 ? "ok" : "skipped",
+      count: obsCount,
+      source: "news/conflict/earth",
+      durationMs: Date.now() - obsStarted,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    domains.push({
+      domain: "observations:recent",
+      status: "error",
+      count: 0,
+      source: "news/conflict/earth",
+      durationMs: Date.now() - obsStarted,
+      errorCode: "seed_failed",
+      errorMessage: message.slice(0, 200),
+    });
+  }
+
   domains.push(await seedIss());
 
   for (const batch of chunk(SEED_MODULES, 2)) {

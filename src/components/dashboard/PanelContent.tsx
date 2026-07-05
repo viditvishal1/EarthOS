@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import type { PanelDefinition, PanelInstance } from "@/lib/panels/types";
 import { PanelShell } from "@/components/dashboard/PanelShell";
 import { QuickPanelInner, type QuickKind } from "@/components/quick/QuickPanels";
+import { EventTimelinePanel } from "@/components/panels/EventTimelinePanel";
 
 const GlobeDashboard = dynamic(
   () => import("@/components/GlobeDashboard").then((m) => m.GlobeDashboard),
@@ -56,6 +57,14 @@ export function PanelContent({
     return (
       <PanelShell title={definition.title} onClose={onClose}>
         <ProviderHealthPanel />
+      </PanelShell>
+    );
+  }
+
+  if (definition.componentId === "event-timeline") {
+    return (
+      <PanelShell title={definition.title} source="GDELT / modules" onClose={onClose}>
+        <EventTimelinePanel />
       </PanelShell>
     );
   }

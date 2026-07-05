@@ -22,7 +22,7 @@ export { NEWS_CONNECTOR_IDS, searchGoogleNews } from "./news";
 export { FIRMS_CONNECTOR_ID } from "./firms";
 export { EARTH_CONNECTOR_IDS, fetchWeather } from "./earth";
 export { CYBER_CONNECTOR_IDS } from "./cyber";
-export { AVIATION_CONNECTOR_IDS, fetchFlights, REGIONS } from "./aviation";
+export { AVIATION_CONNECTOR_IDS, fetchFlights, fetchFlightsByBbox, REGIONS } from "./aviation";
 export { MARITIME_CONNECTOR_IDS } from "./maritime";
 export { SPACE_CONNECTOR_IDS, fetchIss, fetchKIndex } from "./space";
 export { MARKETS_CONNECTOR_IDS, fetchStockHistory, fetchCryptoHistory } from "./markets";

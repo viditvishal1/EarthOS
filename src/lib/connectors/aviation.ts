@@ -2,6 +2,8 @@
 // bbox-limited to keep payloads small) + FAA airspace system status.
 
 import type { Item } from "@/lib/types";
+import { buildFlightItem } from "@/lib/aviation/flight-record";
+import { openskyAuthHeaders } from "@/lib/connectors/opensky-auth";
 import { fetchWithTimeout, registerConnector } from "./framework";
 
 // Each region has a bbox (for OpenSky) and a set of probe points (for the
@@ -113,48 +115,45 @@ type OpenSkyState = [
   number | null, number | null, ...unknown[],
 ];
 
-async function fetchOpenSky(region: string): Promise<Item[]> {
-  const r = REGIONS[region] ?? REGIONS.europe;
-  if (!r.bbox) throw new Error("no bbox for this region — use probes");
-  const [lamin, lomin, lamax, lomax] = r.bbox;
+async function fetchOpenSkyBbox(
+  bbox: [number, number, number, number],
+  limit = 500,
+  regionLabel = "Viewport",
+): Promise<Item[]> {
+  const [lamin, lomin, lamax, lomax] = bbox;
   const url = `https://opensky-network.org/api/states/all?lamin=${lamin}&lomin=${lomin}&lamax=${lamax}&lomax=${lomax}`;
-  const res = await fetchWithTimeout(url, { timeoutMs: 12000 });
+  const auth = await openskyAuthHeaders();
+  const res = await fetchWithTimeout(url, { timeoutMs: 12000, headers: auth });
   if (!res.ok) throw new Error(`OpenSky HTTP ${res.status}`);
   const data = await res.json();
   const states: OpenSkyState[] = data.states ?? [];
   if (states.length === 0) throw new Error("OpenSky returned no aircraft");
   return states
     .filter((s) => s[5] != null && s[6] != null && !s[8])
-    .slice(0, 500)
-    .map((s): Item => {
-      const callsign = (s[1] ?? "").trim() || s[0].toUpperCase();
-      const airlinePrefix = callsign.match(/^[A-Z]{3}/)?.[0];
-      return {
-        id: `flight:${s[0]}`,
-        module: "aviation",
-        connectorId: "opensky_states",
-        title: callsign,
-        summary: `${callsign} · ${s[2]} · alt ${s[7] ? Math.round(s[7]) + " m" : "n/a"} · ${s[9] ? Math.round((s[9] as number) * 3.6) + " km/h" : ""}`,
-        source: "OpenSky Network",
-        url: `https://opensky-network.org/aircraft-profile?icao24=${s[0]}`,
-        timestamp: new Date((s[4] as number) * 1000).toISOString(),
+    .slice(0, limit)
+    .map((s) =>
+      buildFlightItem({
+        icao24: s[0],
+        callsign: s[1],
+        originCountry: s[2] ?? undefined,
         lat: s[6] as number,
         lon: s[5] as number,
-        tags: ["flight", r.label.toLowerCase()],
-        region: r.label,
-        entities: airlinePrefix
-          ? [{ name: airlinePrefix, type: "organization" }, { name: callsign, type: "aircraft" }]
-          : [{ name: callsign, type: "aircraft" }],
-        contentPolicy: "full_cache",
-        extra: {
-          icao24: s[0],
-          originCountry: s[2],
-          altitudeM: s[7],
-          velocityMs: s[9],
-          heading: s[10],
-        },
-      };
-    });
+        altitudeM: s[7] ?? null,
+        velocityMs: s[9] ?? null,
+        heading: s[10] ?? null,
+        onGround: Boolean(s[8]),
+        observedAt: new Date((s[4] as number) * 1000).toISOString(),
+        provider: Object.keys(auth).length ? "OpenSky Network (OAuth)" : "OpenSky Network",
+        sourceUrl: `https://opensky-network.org/aircraft-profile?icao24=${s[0]}`,
+        region: regionLabel,
+      }),
+    );
+}
+
+async function fetchOpenSky(region: string): Promise<Item[]> {
+  const r = REGIONS[region] ?? REGIONS.europe;
+  if (!r.bbox) throw new Error("no bbox for this region — use probes");
+  return fetchOpenSkyBbox(r.bbox, 500, r.label);
 }
 
 interface AdsbAircraft {
@@ -199,35 +198,23 @@ async function fetchAdsbLol(region: string, probesOverride?: [number, number][])
 
   if (seen.size === 0) throw new Error("adsb.lol returned no aircraft");
   const limit = region === "global" ? 8000 : 4000;
-  return [...seen.values()].slice(0, limit).map((ac): Item => {
-    const callsign = (ac.flight ?? "").trim() || ac.r || ac.hex.toUpperCase();
-    const airlinePrefix = callsign.match(/^[A-Z]{3}/)?.[0];
-    return {
-      id: `flight:${ac.hex}`,
-      module: "aviation",
-      connectorId: "opensky_states",
-      title: callsign,
-      summary: `${callsign}${ac.t ? ` · ${ac.t}` : ""} · alt ${typeof ac.alt_baro === "number" ? Math.round(ac.alt_baro) + " ft" : "n/a"}${ac.gs ? ` · ${Math.round(ac.gs * 1.852)} km/h` : ""}`,
-      source: "adsb.lol",
-      url: `https://globe.adsb.lol/?icao=${ac.hex}`,
-      timestamp: new Date().toISOString(),
-      lat: ac.lat,
-      lon: ac.lon,
-      tags: ["flight", r.label.toLowerCase()],
+  return [...seen.values()].slice(0, limit).map((ac) =>
+    buildFlightItem({
+      icao24: ac.hex,
+      callsign: ac.flight ?? ac.r,
+      lat: ac.lat!,
+      lon: ac.lon!,
+      altitudeM: typeof ac.alt_baro === "number" ? ac.alt_baro * 0.3048 : null,
+      velocityMs: ac.gs != null ? ac.gs * 0.514444 : null,
+      heading: ac.track ?? null,
+      observedAt: new Date().toISOString(),
+      provider: "adsb.lol",
+      sourceUrl: `https://globe.adsb.lol/?icao=${ac.hex}`,
       region: r.label,
-      entities: airlinePrefix
-        ? [{ name: airlinePrefix, type: "organization" }, { name: callsign, type: "aircraft" }]
-        : [{ name: callsign, type: "aircraft" }],
-      contentPolicy: "full_cache",
-      extra: {
-        icao24: ac.hex,
-        aircraftType: ac.t,
-        registration: ac.r,
-        altitudeFt: ac.alt_baro,
-        heading: ac.track ?? 0,
-      },
-    };
-  });
+      aircraftType: ac.t ?? null,
+      registration: ac.r ?? null,
+    }),
+  );
 }
 
 interface WingbitsFlight {
@@ -288,6 +275,22 @@ async function fetchWingbits(region: string): Promise<Item[]> {
 }
 
 export type FlightFetchMode = "fast" | "full";
+
+/** Viewport-bounded flight fetch — OpenSky OAuth when configured, adsb.lol fallback. */
+export async function fetchFlightsByBbox(
+  bbox: [number, number, number, number],
+  opts: { limit?: number } = {},
+): Promise<Item[]> {
+  const limit = opts.limit ?? 500;
+  const centerLat = (bbox[1] + bbox[3]) / 2;
+  const centerLon = (bbox[0] + bbox[2]) / 2;
+
+  try {
+    return await fetchOpenSkyBbox(bbox, limit, "Viewport");
+  } catch {
+    return fetchAdsbLol("global", [[centerLat, centerLon]]).then((items) => items.slice(0, limit));
+  }
+}
 
 export async function fetchFlights(region: string, mode: FlightFetchMode = "full"): Promise<Item[]> {
   const r = REGIONS[region] ?? REGIONS.europe;

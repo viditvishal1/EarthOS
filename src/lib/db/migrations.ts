@@ -8,6 +8,7 @@ export const EXPECTED_MIGRATIONS = [
   "002_ontology_search_ops.sql",
   "003_secure_base_rls.sql",
   "004_dashboard_panels.sql",
+  "005_observations_tracks.sql",
   "006_provider_governance.sql",
 ] as const;
 

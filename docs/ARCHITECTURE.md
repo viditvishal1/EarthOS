@@ -30,7 +30,11 @@ Provider (public API) → connector fetch → validate → normalize Item
 ## API surface
 
 - `GET /api/v1/providers/health` — registry + connector status (no secrets)
-- `GET /api/v1/map/viewport` — bbox-bounded map points
+- `GET /api/v1/observations` — normalized events/news with optional clustering
+- `GET /api/v1/map/viewport` — multi-layer bbox queries (flights, events, quakes)
+- `GET /api/v1/tracks/flights` — viewport flight tracks (no fabricated routes)
+- `GET /api/v1/tracks/flights/:icao24` — aircraft detail
+- `GET /api/v1/stream` — SSE flight count deltas
 - `GET /api/bootstrap` — client hydration bundle
 
 ## Phased roadmap
