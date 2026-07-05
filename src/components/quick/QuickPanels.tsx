@@ -33,6 +33,20 @@ async function getItems(module: string): Promise<Item[]> {
   }
 }
 
+export function QuickPanelInner({ kind }: { kind: QuickKind }) {
+  return (
+    <>
+      {kind === "wire" && <WirePanel />}
+      {kind === "stocks" && <StocksPanel />}
+      {kind === "streams" && <StreamsPanel />}
+      {kind === "predictions" && <PredictionsPanel />}
+      {kind === "cameras" && <CamerasPanel />}
+      {kind === "defcon" && <DefconPanel />}
+      {kind === "outbreaks" && <OutbreaksPanel />}
+    </>
+  );
+}
+
 export function QuickPanel({ kind, onClose }: { kind: QuickKind; onClose: () => void }) {
   return (
     <div className="hud-window absolute bottom-12 left-[4.5rem] top-16 z-30 flex w-[340px] max-w-[calc(100%-6rem)] flex-col rounded-lg">
@@ -41,13 +55,7 @@ export function QuickPanel({ kind, onClose }: { kind: QuickKind; onClose: () => 
         <button onClick={onClose} className="text-ink-dim hover:text-ink" aria-label="Close"><X className="h-4 w-4" /></button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {kind === "wire" && <WirePanel />}
-        {kind === "stocks" && <StocksPanel />}
-        {kind === "streams" && <StreamsPanel />}
-        {kind === "predictions" && <PredictionsPanel />}
-        {kind === "cameras" && <CamerasPanel />}
-        {kind === "defcon" && <DefconPanel />}
-        {kind === "outbreaks" && <OutbreaksPanel />}
+        <QuickPanelInner kind={kind} />
       </div>
     </div>
   );

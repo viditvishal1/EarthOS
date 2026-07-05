@@ -1,0 +1,45 @@
+services:
+  argus:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://argus:argus@postgres:5432/argus
+      VALKEY_URL: redis://valkey:6379
+      CRON_SECRET: ${CRON_SECRET:-change-me-in-production}
+      ARGUS_APP_URL: http://localhost:3000
+    depends_on:
+      - postgres
+      - valkey
+    restart: unless-stopped
+
+  postgres:
+    image: postgis/postgis:16-3.4-alpine
+    environment:
+      POSTGRES_USER: argus
+      POSTGRES_PASSWORD: argus
+      POSTGRES_DB: argus
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - valkeydata:/data
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - argus
+
+volumes:
+  pgdata:
+  valkeydata:

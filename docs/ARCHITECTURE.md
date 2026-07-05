@@ -1,137 +1,38 @@
-# EarthOS Target Architecture
+# Argus Architecture (World Monitor transformation — Phase 0–1)
 
-## Design principles
+Argus adopts World Monitor **patterns** (panel registry, map layer registry, provider gateway, seed/read cache) without copying AGPL code.
 
-1. **Supabase PostgreSQL + PostGIS** — transactional system of record (config, ontology, users, snapshots)
-2. **Cloudflare R2** — raw/compressed payloads, Parquet, evidence (batched, partitioned)
-3. **Redis** — cache, locks, rate limits, checkpoints, short-lived state
-4. **ClickHouse** (optional, prod) — high-volume time-series analytics via adapter
-5. **OpenSearch** (Phase 2) — lexical + faceted + geo search
-6. **pgvector** (Phase 2) — semantic retrieval over entities, stories, investigations
+## Runtime stack
 
-Local development runs without ClickHouse/OpenSearch; adapters degrade gracefully.
+- **App:** Next.js 15 App Router, React 19, TypeScript, MapLibre GL
+- **Canonical self-host:** Docker Compose — Next.js + PostgreSQL/PostGIS + Valkey + nginx
+- **Optional cloud adapters:** Supabase, Upstash/KV, Vercel, R2 (not required for core operation)
 
----
+## Data flow
 
-## System diagram
-
-```mermaid
-flowchart TB
-  subgraph sources [External Sources]
-    GDELT[GDELT]
-    OpenSky[OpenSky / adsb.lol]
-    AIS[AIS providers]
-    Markets[Yahoo / CoinGecko]
-    News[RSS / Google News]
-    OSM[OpenStreetMap]
-  end
-
-  subgraph ingest [Ingestion Pipeline]
-    Collectors[Scheduled Collectors]
-    Queue[Queue / Redis]
-    Validate[Validation]
-    Normalize[Normalization]
-    Dedup[Deduplication]
-    EntityRes[Entity Resolution]
-  end
-
-  subgraph storage [Storage Layer]
-    PG[(Supabase Postgres + PostGIS)]
-    R2[(Cloudflare R2)]
-    Redis[(Redis)]
-    CH[(ClickHouse - optional)]
-    OS[(OpenSearch - Phase 2)]
-    Vec[(pgvector - Phase 2)]
-  end
-
-  subgraph app [Next.js Application]
-    API[API Routes]
-    UI[Module UIs]
-    Workers[Background Workers]
-  end
-
-  sources --> Collectors
-  Collectors --> Queue
-  Queue --> Validate --> Normalize --> Dedup --> EntityRes
-  EntityRes --> PG
-  EntityRes --> R2
-  EntityRes --> Redis
-  EntityRes --> CH
-  EntityRes --> OS
-  EntityRes --> Vec
-  API --> Redis
-  API --> PG
-  API --> OS
-  UI --> API
-  Workers --> Collectors
+```
+Provider (public API) → connector fetch → validate → normalize Item
+  → content policy trim → Redis LKG cache → API read → panels/map
+  → optional Postgres persistence / queue (migrations 004–006)
 ```
 
----
+## Key modules
 
-## Ingestion pipeline
+| Path | Role |
+|------|------|
+| `src/lib/connectors/registry.ts` | Provider auth class, license, schedule, default policy |
+| `src/lib/connectors/contracts.ts` | ProviderDefinition + provenance types |
+| `src/lib/panels/registry.ts` | Dashboard panel catalog |
+| `src/lib/map/LayerRegistry.ts` | Map layer definitions |
+| `src/lib/ingest/orchestrator.ts` | Due-provider scheduler (bridges legacy connectors) |
+| `src/lib/live/*` | Live seed/read split (flights, ships, CCTV, ISS) |
 
-```text
-Sources → collectors → queue → raw archive (R2) → validation → normalization
-  → deduplication → entity resolution → indexes → alerts → APIs → UI
-```
+## API surface
 
-Every ingestion record includes:
+- `GET /api/v1/providers/health` — registry + connector status (no secrets)
+- `GET /api/v1/map/viewport` — bbox-bounded map points
+- `GET /api/bootstrap` — client hydration bundle
 
-```ts
-source_id, provider, external_id, ingested_at, observed_at, source_url,
-content_hash, schema_version, raw_object_key, processing_status, reliability_score
-```
+## Phased roadmap
 
-Collectors **never** run inside user search requests (Phase 2+ enforcement).
-
----
-
-## Memory model (neuro-symbolic)
-
-| Level | Store | Retention |
-|-------|-------|-----------|
-| L1 Working | Redis | seconds–minutes |
-| L2 Raw | R2 (compressed) | hours–days |
-| L3 Episodic | R2 / ClickHouse | days–months |
-| L4 Semantic | PostgreSQL ontology | permanent |
-| L5 Vector | pgvector | selective |
-
----
-
-## Cost controls
-
-| Threshold | Action |
-|-----------|--------|
-| 60% quota | Warning |
-| 75% | Reduce low-priority polling |
-| 85% | Pause low-priority global sources |
-| 90% | Watchlists + viewport only |
-| 95% | Emergency cleanup |
-| 98% | Block non-essential writes |
-
-**Supabase target:** operational < 300 MB, reserve ≥ 150 MB.
-
----
-
-## Security model (target)
-
-- Organisation-scoped tenant isolation (Phase 2 auth)
-- Service role for server writes only
-- No anon write policies
-- URL allowlists + SSRF protection on fetchers
-- API rate limits per route class
-- Encrypted source credentials in `data_sources.config_json`
-
----
-
-## Current vs target (Phase 0–1)
-
-| Capability | Before | After Phase 1 |
-|------------|--------|---------------|
-| Source config | Hardcoded TS | `data_sources` table + seeds |
-| Connector health | Fake `ok: true` | `unknown` until verified |
-| Raw archive | None | R2 adapter (optional) |
-| Cache | globalThis | Redis adapter + fallback |
-| RLS | Open | Deny client roles |
-| Rate limits | None | Per-route limits |
-| Usage tracking | None | `/api/usage` + DB table |
+See blueprint package `Argus_WorldMonitor_Blueprint.md` for Phases 2–8 (observations API, OpenSky OAuth, AISStream, auth/alerts, hardening).
