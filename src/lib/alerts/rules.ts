@@ -3,7 +3,12 @@ import { dbEnabled } from "@/lib/db";
 import type { ApiPrincipal } from "@/lib/auth/api-guard";
 import { resolveDbClient } from "@/lib/auth/api-session";
 
-export type AlertRuleType = "severity_threshold" | "module_tag" | "keyword";
+export type AlertRuleType =
+  | "severity_threshold"
+  | "module_tag"
+  | "keyword"
+  | "watchlist_match"
+  | "cross_domain";
 
 export interface AlertRule {
   id: string;
@@ -29,6 +34,22 @@ const DEFAULT_RULES: AlertRule[] = [
     ruleType: "module_tag",
     enabled: true,
     config: { module: "cyber", tag: "kev" },
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "conflict-escalation",
+    name: "Conflict module escalation",
+    ruleType: "cross_domain",
+    enabled: true,
+    config: { modules: ["conflict", "earth"], minSeverity: 6 },
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "maritime-distress",
+    name: "Maritime high-severity",
+    ruleType: "cross_domain",
+    enabled: true,
+    config: { module: "maritime", minSeverity: 5 },
     createdAt: new Date().toISOString(),
   },
 ];

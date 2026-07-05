@@ -4,7 +4,7 @@
 import { dbEnabled, logEvent } from "@/lib/db";
 
 export type EarthEvent = {
-  type: "connector.run" | "connector.error" | "ingest.received" | "article.cached";
+  type: "connector.run" | "connector.error" | "ingest.received" | "article.cached" | "alert.fired";
   connectorId?: string;
   module?: string;
   itemCount?: number;

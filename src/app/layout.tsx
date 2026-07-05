@@ -3,6 +3,7 @@ import "./globals.css";
 import { Nav } from "@/components/Nav";
 import { GlobalSearchBar } from "@/components/GlobalSearchBar";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { NotificationCenter } from "@/components/NotificationCenter";
 import { CommandPalette } from "@/components/CommandPalette";
 import { MotionPause } from "@/components/MotionPause";
 
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-body/90 px-4 backdrop-blur">
               <GlobalSearchBar />
               <div className="ml-auto flex items-center gap-2">
+                <NotificationCenter />
                 <CommandPalette />
                 <ThemeToggle />
               </div>

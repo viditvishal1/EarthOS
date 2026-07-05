@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ingestItems } from "@/lib/graph";
 import { persistIngestedItems } from "@/lib/db";
 import { publish } from "@/lib/events/bus";
+import { evaluateAlerts } from "@/lib/alerts/engine";
 import type { Item } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
   ingestItems(items);
   await persistIngestedItems(items, connectorId);
   await publish({ type: "ingest.received", connectorId, itemCount: items.length });
+  void evaluateAlerts(items).catch(() => {});
 
   return NextResponse.json({ ok: true, ingested: items.length });
 }

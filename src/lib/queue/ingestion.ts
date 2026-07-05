@@ -5,6 +5,7 @@ import { computeExpiresAt } from "@/lib/storage/retention";
 import { recordUsageMetric, recordIngestion } from "@/lib/db/platform";
 import { syncItemOntology } from "@/lib/ontology/store";
 import { publish } from "@/lib/events/bus";
+import { evaluateAlerts } from "@/lib/alerts/engine";
 import type { Item } from "@/lib/types";
 
 export interface IngestionJob {
@@ -79,6 +80,8 @@ async function processJob(job: IngestionJob): Promise<void> {
   if (archive.bytes) {
     await recordUsageMetric("ingestion.bytes", archive.bytes, "bytes", { source_id: job.sourceId });
   }
+
+  void evaluateAlerts(job.items).catch(() => {});
 }
 
 export function queueDepth(): number {

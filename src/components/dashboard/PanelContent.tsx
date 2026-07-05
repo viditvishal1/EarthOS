@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import type { PanelDefinition, PanelInstance } from "@/lib/panels/types";
 import { PanelShell } from "@/components/dashboard/PanelShell";
@@ -8,6 +8,14 @@ import { QuickPanelInner, type QuickKind } from "@/components/quick/QuickPanels"
 import { EventTimelinePanel } from "@/components/panels/EventTimelinePanel";
 import { MarketsSnapshotPanel } from "@/components/panels/MarketsSnapshotPanel";
 import { MonitorPanel } from "@/components/panels/MonitorPanel";
+import {
+  AviationStatusPanel,
+  ConflictEventsPanel,
+  CyberThreatPanel,
+  MaritimeStatusPanel,
+  SpaceStatusPanel,
+} from "@/components/panels/DomainPanels";
+import { ModuleFeedPanel } from "@/components/panels/ModuleFeedPanel";
 
 const GlobeDashboard = dynamic(
   () => import("@/components/GlobeDashboard").then((m) => m.GlobeDashboard),
@@ -59,8 +67,26 @@ function ProviderHealthPanel() {
 
 const QUICK_MAP: Record<string, QuickKind> = {
   "wire-headlines": "wire",
-  "aviation-status": "wire",
+  "live-news": "streams",
+  "stocks-ticker": "stocks",
+  "watch-signals": "predictions",
+  "defcon-posture": "defcon",
+  "outbreaks-monitor": "outbreaks",
 };
+
+function shell(
+  definition: PanelDefinition,
+  onClose: (() => void) | undefined,
+  draggable: boolean | undefined,
+  source: string | undefined,
+  children: ReactNode,
+) {
+  return (
+    <PanelShell title={definition.title} source={source} onClose={onClose} draggable={draggable}>
+      {children}
+    </PanelShell>
+  );
+}
 
 export function PanelContent({
   instance,
@@ -94,59 +120,50 @@ export function PanelContent({
   }
 
   if (definition.componentId === "provider-health") {
-    return (
-      <PanelShell title={definition.title} onClose={onClose} draggable={draggable}>
-        <ProviderHealthPanel />
-      </PanelShell>
-    );
+    return shell(definition, onClose, draggable, undefined, <ProviderHealthPanel />);
   }
-
   if (definition.componentId === "event-timeline") {
-    return (
-      <PanelShell title={definition.title} source="GDELT / modules" onClose={onClose} draggable={draggable}>
-        <EventTimelinePanel />
-      </PanelShell>
-    );
+    return shell(definition, onClose, draggable, "GDELT / modules", <EventTimelinePanel />);
   }
-
   if (definition.componentId === "markets-snapshot") {
-    return (
-      <PanelShell title={definition.title} source="Stooq EOD · CoinGecko" onClose={onClose} draggable={draggable}>
-        <MarketsSnapshotPanel />
-      </PanelShell>
-    );
+    return shell(definition, onClose, draggable, "Stooq EOD · CoinGecko", <MarketsSnapshotPanel />);
   }
-
   if (definition.componentId === "my-monitors") {
-    return (
-      <PanelShell title={definition.title} source="Alert engine" onClose={onClose} draggable={draggable}>
-        <MonitorPanel />
-      </PanelShell>
-    );
+    return shell(definition, onClose, draggable, "Alert engine", <MonitorPanel />);
+  }
+  if (definition.componentId === "conflict-events") {
+    return shell(definition, onClose, draggable, "UCDP · ACLED", <ConflictEventsPanel />);
+  }
+  if (definition.componentId === "aviation-status") {
+    return shell(definition, onClose, draggable, "OpenSky · FAA", <AviationStatusPanel />);
+  }
+  if (definition.componentId === "cyber-threats") {
+    return shell(definition, onClose, draggable, "CISA KEV · NVD", <CyberThreatPanel />);
+  }
+  if (definition.componentId === "maritime-status") {
+    return shell(definition, onClose, draggable, "AIS", <MaritimeStatusPanel />);
+  }
+  if (definition.componentId === "space-tracker") {
+    return shell(definition, onClose, draggable, "CelesTrak · ISS", <SpaceStatusPanel />);
   }
 
   const quickKind = QUICK_MAP[definition.componentId];
   if (quickKind) {
-    return (
-      <PanelShell title={definition.title} onClose={onClose} draggable={draggable}>
-        <QuickPanelInner kind={quickKind} />
-      </PanelShell>
-    );
+    return shell(definition, onClose, draggable, undefined, <QuickPanelInner kind={quickKind} />);
   }
 
   if (definition.componentId === "cameras") {
-    return (
-      <PanelShell title={definition.title} source="Agency feeds" onClose={onClose} draggable={draggable}>
-        <QuickPanelInner kind="cameras" />
-      </PanelShell>
-    );
+    return shell(definition, onClose, draggable, "Agency feeds", <QuickPanelInner kind="cameras" />);
   }
 
-  return (
-    <PanelShell title={definition.title} onClose={onClose} draggable={draggable}>
-      <p className="text-[11px] text-ink-dim">
-        Panel <code className="mono">{definition.key}</code> — dependencies: {definition.dataDependencies.join(", ") || "none"}
-      </p>
-    </PanelShell>
+  return shell(
+    definition,
+    onClose,
+    draggable,
+    undefined,
+    <p className="text-[11px] text-ink-dim">
+      Panel <code className="mono">{definition.key}</code> — dependencies:{" "}
+      {definition.dataDependencies.join(", ") || "none"}
+    </p>,
   );
 }

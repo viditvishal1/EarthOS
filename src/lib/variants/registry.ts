@@ -1,8 +1,10 @@
 import type { VariantDefinition, VariantId } from "@/lib/variants/types";
 
 const WORLD_PANELS = [
-  "globe-map", "event-timeline", "wire-headlines", "conflict-events",
-  "markets-snapshot", "aviation-status", "cameras", "my-monitors", "provider-health",
+  "globe-map", "event-timeline", "wire-headlines", "conflict-events", "live-news",
+  "markets-snapshot", "stocks-ticker", "aviation-status", "maritime-status", "space-tracker",
+  "cyber-threats", "defcon-posture", "outbreaks-monitor", "watch-signals",
+  "cameras", "my-monitors", "provider-health",
 ];
 
 const WORLD_LAYERS = [
