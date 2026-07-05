@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseViewport, filterByViewport, type MapPoint } from "@/lib/maps/viewport";
-import { fetchFlights } from "@/lib/connectors";
+import { fetchFlightsByBbox } from "@/lib/connectors/aviation";
 import { trackApiRequest } from "@/lib/usage/tracker";
 
 export const dynamic = "force-dynamic";
@@ -15,8 +15,8 @@ export async function GET(req: NextRequest) {
   let points: MapPoint[] = [];
 
   if (layer === "aviation") {
-    const region = req.nextUrl.searchParams.get("region") ?? "global";
-    const items = await fetchFlights(region);
+    const bbox: [number, number, number, number] = [vp.west, vp.south, vp.east, vp.north];
+    const items = await fetchFlightsByBbox(bbox, { limit: vp.limit ?? 500 });
     points = items
       .filter((it) => typeof it.lat === "number" && typeof it.lon === "number")
       .map((it) => ({

@@ -15,6 +15,8 @@ import { EntityDetailPanel } from "@/components/EntityDetailPanel";
 import { IntegrationBadge, integrationDetail } from "@/components/IntegrationBadge";
 import { QuickPanel, type QuickKind } from "@/components/quick/QuickPanels";
 import { useGlobeLiveData } from "@/lib/hooks/useGlobeLiveData";
+import { useViewportFlights } from "@/lib/hooks/useViewportFlights";
+import type { MapBounds } from "@/lib/maps/bbox";
 import { useEntityTrack } from "@/lib/hooks/useEntityTrack";
 import type { Item } from "@/lib/types";
 
@@ -62,7 +64,6 @@ export function GlobeDashboard({
 }) {
   const live = useGlobeLiveData(region);
   const quakes = quakesProp ?? live.quakes;
-  const flights = flightsProp ?? live.flights;
   const events = eventsProp ?? live.events;
   const iss = issProp ?? live.iss;
   const ships = live.ships;
@@ -71,7 +72,7 @@ export function GlobeDashboard({
 
   const [now, setNow] = useState(new Date());
   const [selected, setSelected] = useState<Item | null>(null);
-  const [coords, setCoords] = useState<{ lat: number; lon: number; zoom: number } | null>(null);
+  const [coords, setCoords] = useState<MapBounds | null>(null);
   const [toggles, setToggles] = useState<Record<LayerKey, boolean>>({
     events: true, quakes: true, iss: true, flights: true, ships: false, webcams: false, cctv: false,
   });
@@ -79,6 +80,12 @@ export function GlobeDashboard({
   const [autoRotate, setAutoRotate] = useState(variant === "dashboard");
   const [viewMode, setViewMode] = useState<ViewMode>("globe");
   const [quickOpen, setQuickOpen] = useState<QuickKind | null>(null);
+
+  const flightsBase = flightsProp ?? live.flights;
+  const viewportFlights = useViewportFlights(toggles.flights && flightsProp == null, coords);
+  const flights = viewportFlights.active && viewportFlights.flights.length > 0
+    ? viewportFlights.flights
+    : flightsBase;
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);

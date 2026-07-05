@@ -11,6 +11,7 @@ import {
   extractEntityFields,
 } from "@/lib/entity/detail";
 import { useFlightEnrichment } from "@/lib/hooks/useFlightEnrichment";
+import { CctvSnapshotViewer } from "@/components/CctvSnapshotViewer";
 
 function SeverityBadge({ item }: { item: Item }) {
   if (!item.severityLabel) return null;
@@ -122,7 +123,16 @@ export function EntityDetailPanel({
           <RouteBanner route={routeField.value} />
         )}
 
-        <PreviewMedia item={item} imageUrl={imageUrl} />
+        {kind === "cctv" && typeof item.extra?.imageUrl === "string" ? (
+          <CctvSnapshotViewer
+            imageUrl={item.extra.imageUrl}
+            title={item.title}
+            refreshSeconds={typeof item.extra.refreshSeconds === "number" ? item.extra.refreshSeconds : 120}
+            className="mb-3"
+          />
+        ) : (
+          <PreviewMedia item={item} imageUrl={imageUrl} />
+        )}
 
         {showSummary && (
           <p className="mb-3 text-[12px] leading-relaxed text-soft">{item.summary}</p>
@@ -147,14 +157,26 @@ export function EntityDetailPanel({
           </div>
         )}
 
-        {(kind === "webcam" || kind === "cctv") && item.url && (
+        {kind === "webcam" && item.url && (
           <a
             href={item.url}
             target="_blank"
             rel="noreferrer"
             className="mt-3 flex items-center gap-1 text-[11px] text-accent hover:underline"
           >
-            Open live feed <ExternalLink className="h-3 w-3" />
+            Open live stream <ExternalLink className="h-3 w-3" />
+          </a>
+        )}
+
+        {kind === "cctv" && item.url && (
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 flex items-center gap-1 text-[11px] text-accent hover:underline"
+          >
+            View on {item.source}
+            <ExternalLink className="h-3 w-3" />
           </a>
         )}
 

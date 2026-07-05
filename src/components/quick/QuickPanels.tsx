@@ -11,6 +11,7 @@ import type { Item } from "@/lib/types";
 import { Badge } from "@/components/Badge";
 import { timeAgo } from "@/components/ModuleView";
 import { LIVE_CHANNELS } from "@/lib/config/live-channels";
+import { CctvSnapshotViewer } from "@/components/CctvSnapshotViewer";
 
 export type QuickKind = "wire" | "stocks" | "streams" | "predictions" | "cameras" | "defcon" | "outbreaks";
 
@@ -225,16 +226,17 @@ function CamerasPanel() {
         !cctv.length ? <Loading /> : (
           <div className="grid grid-cols-2 gap-2">
             {shownCctv.map((c) => (
-              <a key={c.id} href={c.imageUrl} target="_blank" rel="noreferrer" className="group overflow-hidden rounded-md border border-line">
-                <div className="relative aspect-video bg-black">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={c.imageUrl} alt={c.title} className="h-full w-full object-cover opacity-80 group-hover:opacity-100" loading="lazy" />
-                </div>
+              <div key={c.id} className="overflow-hidden rounded-md border border-line">
+                <CctvSnapshotViewer
+                  imageUrl={c.imageUrl}
+                  title={c.title}
+                  refreshSeconds={c.refreshSeconds}
+                />
                 <div className="px-1.5 py-1 text-[10px] text-ink">{c.title}</div>
                 <div className="px-1.5 pb-1 text-[9px] text-ink-dim">
-                  Snapshot · ~{Math.max(1, Math.round(c.refreshSeconds / 60))} min · {c.source}
+                  {c.source} · {c.region}
                 </div>
-              </a>
+              </div>
             ))}
           </div>
         )

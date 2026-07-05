@@ -370,7 +370,7 @@ registerConnector(
     contentPolicy: "full_cache",
     entityTypes: ["aircraft", "organization"],
   },
-  () => fetchFlights("europe"),
+  () => fetchFlights("global", "fast"),
 );
 
 registerConnector(

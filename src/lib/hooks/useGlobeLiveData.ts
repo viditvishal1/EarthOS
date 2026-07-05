@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Item } from "@/lib/types";
 import type { CctvCamera } from "@/lib/live/cctv/types";
+import { cameraAgencyUrl } from "@/lib/cameras/registry";
 
 export interface GlobeLiveMeta {
   flightsUpdatedAt?: string | null;
@@ -79,7 +80,7 @@ export function cctvToItem(c: CctvCamera): Item {
     timestamp: c.lastSeenAt,
     lat: c.lat,
     lon: c.lng,
-    url: c.imageUrl,
+    url: cameraAgencyUrl(c.source),
     tags: ["cctv", "snapshot", c.source],
     entities: [{ name: c.region, type: "location" }],
     contentPolicy: "metadata_only",

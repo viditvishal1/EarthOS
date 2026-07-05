@@ -21,6 +21,7 @@ describe("cctvToItem", () => {
     expect(item.summary).toContain("~2 min");
     expect(item.summary).not.toMatch(/\bLIVE\b/i);
     expect(item.extra?.snapshot).toBe(true);
+    expect(item.url).toBe("https://tfl.gov.uk/traffic/");
     expect(item.tags).toContain("cctv");
   });
 });

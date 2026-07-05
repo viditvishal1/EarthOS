@@ -196,7 +196,10 @@ export function MapView({
   maxZoom?: number;
   autoRotate?: boolean; // slow bearing spin; pauses on interaction, resumes idle
   rotateSpeed?: number; // degrees of bearing per animation frame tick
-  onMove?: (s: { lat: number; lon: number; zoom: number }) => void; // center/zoom readout
+  onMove?: (s: {
+    lat: number; lon: number; zoom: number;
+    west: number; south: number; east: number; north: number;
+  }) => void;
   /** Override position of basemap / globe / terrain controls (e.g. below a parent toolbar). */
   mapControlsClass?: string;
 }) {
@@ -427,7 +430,16 @@ export function MapView({
     });
     const emitMove = () => {
       const c = map.getCenter();
-      onMoveRef.current?.({ lat: c.lat, lon: c.lng, zoom: map.getZoom() });
+      const b = map.getBounds();
+      onMoveRef.current?.({
+        lat: c.lat,
+        lon: c.lng,
+        zoom: map.getZoom(),
+        west: b.getWest(),
+        south: b.getSouth(),
+        east: b.getEast(),
+        north: b.getNorth(),
+      });
     };
     map.on("move", emitMove);
     mapRef.current = map;

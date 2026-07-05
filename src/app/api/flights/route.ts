@@ -43,16 +43,27 @@ export async function GET(req: NextRequest) {
   let result = await readFlightsRegion(region);
 
   if (region === "global" && result.data.length === 0) {
-    for (const fallback of ["europe", "usa", "india"] as const) {
-      const alt = await readLiveCached<Item[]>(`flights:${fallback}`, {
+    const fallbackRegions = ["europe", "usa", "india", "china", "mideast", "africa", "easia"] as const;
+    const merged = new Map<string, Item>();
+    let newestUpdatedAt: string | null = null;
+    for (const fb of fallbackRegions) {
+      const alt = await readLiveCached<Item[]>(`flights:${fb}`, {
         ttlSeconds: LIVE_SOFT_TTL.flights,
         source: SOURCE,
         fallback: [],
       });
-      if (alt.data.length > 0) {
-        result = { ...alt, source: `${alt.source} (fallback:${fallback})`, cold: result.cold };
-        break;
+      if (alt.updatedAt && (!newestUpdatedAt || alt.updatedAt > newestUpdatedAt)) {
+        newestUpdatedAt = alt.updatedAt;
       }
+      for (const item of alt.data) merged.set(item.id, item);
+    }
+    if (merged.size > 0) {
+      result = {
+        ...result,
+        data: [...merged.values()],
+        source: `${SOURCE} (merged:${fallbackRegions.join("+")})`,
+        updatedAt: newestUpdatedAt ?? result.updatedAt,
+      };
     }
   }
 

@@ -17,6 +17,8 @@ import { LiveNumber } from "@/components/LiveNumber";
 import { Skeleton } from "@/components/Skeleton";
 import { timeAgo } from "@/components/ModuleView";
 import { useGlobeLiveData } from "@/lib/hooks/useGlobeLiveData";
+import { useViewportFlights } from "@/lib/hooks/useViewportFlights";
+import type { MapBounds } from "@/lib/maps/bbox";
 import { useEntityTrack } from "@/lib/hooks/useEntityTrack";
 
 const LAYER_META = {
@@ -80,6 +82,12 @@ export function EarthViewHome() {
   const [isolate, setIsolate] = useState<LayerKey | null>(null);
   const [autoRotate, setAutoRotate] = useState(true);
   const [selected, setSelected] = useState<Item | null>(null);
+  const [coords, setCoords] = useState<MapBounds | null>(null);
+
+  const viewportFlights = useViewportFlights(toggles.flights, coords);
+  const displayFlights = viewportFlights.active && viewportFlights.flights.length > 0
+    ? viewportFlights.flights
+    : live.flights;
 
   useEffect(() => {
     fetch("/api/bootstrap")
@@ -152,16 +160,16 @@ export function EarthViewHome() {
   useEffect(() => {
     setKpi((k) => ({
       ...k,
-      aircraft: live.flights.length,
+      aircraft: displayFlights.length,
       vessels: live.ships.length,
     }));
-  }, [live.flights.length, live.ships.length]);
+  }, [displayFlights.length, live.ships.length]);
 
   const counts: Record<LayerKey, number> = {
     events: live.events.length,
     quakes: live.quakes.length,
     iss: live.iss.length,
-    flights: live.flights.length,
+    flights: displayFlights.length,
     ships: live.ships.length,
     webcams: live.webcams.length,
     cctv: live.cctv.length,
@@ -179,24 +187,24 @@ export function EarthViewHome() {
     if (activeToggles.events) out.push({ id: "events", color: LAYER_META.events.color, items: live.events.slice(0, 300), radius: 4 });
     if (activeToggles.quakes) out.push({ id: "quakes", color: LAYER_META.quakes.color, items: live.quakes.slice(0, 150), radius: 3 });
     if (activeToggles.iss) out.push({ id: "iss", color: LAYER_META.iss.color, items: live.iss, radius: 6 });
-    if (activeToggles.flights) out.push({ id: "flights", color: LAYER_META.flights.color, items: live.flights.slice(0, 2000), radius: 2, icon: "plane" });
+    if (activeToggles.flights) out.push({ id: "flights", color: LAYER_META.flights.color, items: displayFlights.slice(0, 2000), radius: 2, icon: "plane" });
     if (activeToggles.ships) out.push({ id: "ships", color: LAYER_META.ships.color, items: live.ships.slice(0, 500), radius: 3 });
     if (activeToggles.webcams) out.push({ id: "webcams", color: LAYER_META.webcams.color, items: live.webcams, radius: 4 });
     if (activeToggles.cctv) out.push({ id: "cctv", color: LAYER_META.cctv.color, items: live.cctv, radius: 4 });
     return out;
-  }, [activeToggles, live]);
+  }, [activeToggles, live, displayFlights]);
 
   const allMapItems = useMemo(
     () => [
       ...live.events.slice(0, 300),
       ...live.quakes.slice(0, 150),
       ...live.iss,
-      ...live.flights.slice(0, 2000),
+      ...displayFlights.slice(0, 2000),
       ...live.ships.slice(0, 500),
       ...live.webcams,
       ...live.cctv,
     ],
-    [live],
+    [live, displayFlights],
   );
 
   const trackLines = useEntityTrack(selected);
@@ -256,6 +264,7 @@ export function EarthViewHome() {
           lines={trackLines}
           highlightId={selected?.id}
           onSelect={(id) => setSelected(allMapItems.find((i) => i.id === id) ?? null)}
+          onMove={setCoords}
           defaultBasemap="dark"
           defaultGlobe
           autoRotate={autoRotate}

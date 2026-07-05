@@ -27,7 +27,7 @@ export const MODULE_SOFT_TTL: Record<string, number> = {
 };
 
 export const FLIGHT_SEED_REGIONS = [
-  "global", "europe", "usa", "india", "china", "mideast",
+  "global", "europe", "usa", "india", "china", "mideast", "africa", "easia",
 ] as const;
 
 /** AISHub bbox windows — merged on seed (receiver coverage varies by region). */
@@ -39,7 +39,9 @@ export const SHIP_SEED_BBOXES = [
   { id: "singapore", label: "Malacca / Singapore", latmin: -2, latmax: 12, lonmin: 95, lonmax: 110 },
 ] as const;
 
-export const BOOTSTRAP_FLIGHT_REGIONS = ["global", "europe", "usa", "india"] as const;
+export const BOOTSTRAP_FLIGHT_REGIONS = [
+  "global", "europe", "usa", "india", "china", "mideast", "africa", "easia",
+] as const;
 
 export const BOOTSTRAP_MODULES = ["earth", "news", "conflict", "cyber", "markets"] as const;
 
