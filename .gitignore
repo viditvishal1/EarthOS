@@ -31,3 +31,7 @@ next-env.d.ts
 
 # rust connector worker
 workers/connector-rs/target/
+
+# local artifacts
+EarthOS-main.zip
+.claude/

@@ -8,7 +8,9 @@ import { XMLParser } from "fast-xml-parser";
 import type { Item } from "@/lib/types";
 import { fetchWithTimeout, registerConnector } from "./framework";
 
-const rssParser = new XMLParser({ ignoreAttributes: false });
+// processEntities off: ReliefWeb items carry enough HTML entities to trip the
+// parser's expansion limit, and we strip/normalize the HTML ourselves anyway.
+const rssParser = new XMLParser({ ignoreAttributes: false, processEntities: false });
 
 function rssText(v: unknown): string {
   if (typeof v === "string") return v;
@@ -29,7 +31,13 @@ registerConnector(
     entityTypes: ["location", "event", "organization"],
   },
   async () => {
-    const res = await fetchWithTimeout("https://reliefweb.int/updates/rss.xml", { timeoutMs: 12000 });
+    // ReliefWeb's WAF 406s unknown bot user agents (including honest custom
+    // ones) but allows standard CLI fetch tools. This RSS feed is published
+    // for automated syndication, so identify as a generic fetch tool.
+    const res = await fetchWithTimeout("https://reliefweb.int/updates/rss.xml", {
+      timeoutMs: 12000,
+      headers: { "User-Agent": "Wget/1.21.4" },
+    });
     if (!res.ok) throw new Error(`ReliefWeb HTTP ${res.status}`);
     const doc = rssParser.parse(await res.text());
     interface RwRss { title?: unknown; link?: unknown; pubDate?: unknown; description?: unknown; guid?: unknown }
@@ -37,15 +45,23 @@ registerConnector(
     if (!Array.isArray(raw)) raw = [raw];
     return raw.slice(0, 40).map((r, i): Item => {
       const title = rssText(r.title);
-      // ReliefWeb titles are "Country: headline" — use the prefix as region.
-      const country = title.includes(":") ? title.split(":")[0].trim() : undefined;
+      // ReliefWeb titles are usually "Country: headline" — use the prefix as
+      // region when it looks like a place (short, no digits).
+      const prefix = title.includes(":") ? title.split(":")[0].trim() : "";
+      const country = prefix && prefix.length <= 30 && !/\d/.test(prefix) ? prefix : undefined;
       const link = rssText(r.link);
       return {
         id: `reliefweb:${rssText(r.guid) || link || i}`,
         module: "conflict",
         connectorId: "reliefweb_reports",
         title,
-        summary: rssText(r.description).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 400) || undefined,
+        summary: rssText(r.description)
+          .replace(/&lt;[^&]*?&gt;/g, " ")
+          .replace(/<[^>]+>/g, " ")
+          .replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#039;|&apos;/g, "'").replace(/&nbsp;/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 400) || undefined,
         url: link || undefined,
         source: "ReliefWeb",
         timestamp: r.pubDate ? new Date(rssText(r.pubDate)).toISOString() : new Date().toISOString(),

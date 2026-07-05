@@ -25,12 +25,21 @@ No keys are required to run. Optional keys in `.env.local`:
 | `SUPABASE_URL` + `SUPABASE_PUBLISHABLE_KEY` | Persistent article cache + ingest log | https://supabase.com/dashboard |
 | `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` | Redis event bus | https://upstash.com (free tier) |
 | `ARGUS_INGEST_SECRET` | Rust connector worker → `/api/ingest` | set any strong secret |
+| `ACLED_API_KEY` + `ACLED_EMAIL` | ACLED political-violence events | https://developer.acleddata.com (free) |
+| `UCDP_ACCESS_TOKEN` | UCDP georeferenced conflict events | https://ucdp.uu.se/apidocs/ (free) |
+| `FRED_API_KEY` | US rates/unemployment series | https://fred.stlouisfed.org/docs/api/api_key.html (free) |
+| `EIA_API_KEY` | WTI/Brent oil spot prices | https://www.eia.gov/opendata/register.php (free) |
+| `TOMTOM_API_KEY` | Live traffic polylines on the City Twin map | https://developer.tomtom.com (free tier) |
 
 ## Modules
 
 | Module | Data sources (all free) |
 |---|---|
+| Situation Room | Home view — cross-stream convergence scoring surfaces developing situations across modules |
 | Global Search | Cross-module search over every connector + Google News RSS + data.gov, with AI briefing |
+| Conflict & Crisis | ReliefWeb humanitarian updates (keyless), UCDP + ACLED geolocated events (free keys) on a live map |
+| Live Channels | Broadcaster live news TV + operator-published public city webcams + NASA/ISS — officially public streams only |
+| Macro Economics | World Bank GDP/inflation/unemployment (keyless), FRED US rates, EIA oil spot |
 | Earth View | USGS earthquakes, NASA EONET (wildfires/storms/volcanoes), OpenSky flights, live ISS |
 | News Intelligence | 8 outlet RSS feeds + Google News country/category editions — in-app reader with PDF support & cache |
 | Cyber Intelligence | NVD CVEs (7-day window), CISA Known Exploited Vulnerabilities, vendor watchlist with highlighting |
@@ -61,7 +70,7 @@ Next.js 15 (App Router, TypeScript, Tailwind v4)
 ├── workers/connector-rs/     Rust polling worker → POST /api/ingest
 ├── src/app/api/          API gateway — module feeds, search, graph, article
 │                         extraction, market history, analyst
-└── src/app/…             14 module UIs sharing FilterBar, ReaderPane, EntityChip,
+└── src/app/…             17 module UIs sharing FilterBar, ReaderPane, EntityChip,
                           MapView (MapLibre + CARTO/OSM), ForceGraph (canvas)
 ```
 
