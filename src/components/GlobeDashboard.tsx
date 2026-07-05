@@ -11,9 +11,11 @@ import {
 } from "lucide-react";
 import { MapView, type MapLayer } from "@/components/MapView";
 import { Badge } from "@/components/Badge";
+import { EntityDetailPanel } from "@/components/EntityDetailPanel";
 import { IntegrationBadge, integrationDetail } from "@/components/IntegrationBadge";
 import { QuickPanel, type QuickKind } from "@/components/quick/QuickPanels";
 import { useGlobeLiveData } from "@/lib/hooks/useGlobeLiveData";
+import { useEntityTrack } from "@/lib/hooks/useEntityTrack";
 import type { Item } from "@/lib/types";
 
 const LAYER_META = {
@@ -117,6 +119,8 @@ export function GlobeDashboard({
     [events, quakes, iss, flights, ships, webcams, cctv],
   );
 
+  const trackLines = useEntityTrack(selected);
+
   const ticker = useMemo(
     () => allItems.map((i) => i.title).filter(Boolean).slice(0, 32),
     [allItems],
@@ -135,6 +139,8 @@ export function GlobeDashboard({
       {viewMode !== "wire" && (
         <MapView
           layers={layers}
+          lines={trackLines}
+          highlightId={selected?.id}
           onSelect={(id) => setSelected(allItems.find((i) => i.id === id) ?? null)}
           onMove={setCoords}
           defaultBasemap={variant === "dashboard" ? "satellite" : "dark"}
@@ -311,32 +317,9 @@ export function GlobeDashboard({
       )}
 
       {selected && (
-        <div className="hud-window absolute right-3 top-52 z-20 w-[min(360px,calc(100%-1.5rem))] rounded-lg">
-          <div className="flex items-center justify-between border-b border-line px-3 py-2">
-            <span className="mono text-[10px] uppercase tracking-wide text-ink-dim">{selected.tags[0] ?? "signal"}</span>
-            <button type="button" onClick={() => setSelected(null)} className="text-ink-dim hover:text-ink" aria-label="Close">✕</button>
-          </div>
-          <div className="p-3">
-            {selected.tags.includes("cctv") && typeof selected.extra?.imageUrl === "string" && (
-              <div className="mb-2 overflow-hidden rounded-md border border-line">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={selected.extra.imageUrl}
-                  alt={selected.title}
-                  className="aspect-video w-full object-cover"
-                />
-              </div>
-            )}
-            <div className="text-[13px] font-medium text-ink">{selected.title}</div>
-            {selected.summary && <p className="mt-1 line-clamp-4 text-[12px] text-soft">{selected.summary}</p>}
-            <div className="mt-2 flex items-center gap-2">
-              <Badge tone="info">{selected.source}</Badge>
-              {selected.url && (
-                <a href={selected.url} target="_blank" rel="noreferrer" className="text-[11px] text-accent underline">
-                  Source →
-                </a>
-              )}
-            </div>
+        <div className="pointer-events-none absolute inset-x-0 bottom-12 z-20 flex justify-center px-3 sm:inset-x-auto sm:bottom-auto sm:right-3 sm:top-52 sm:w-[min(380px,calc(100%-1.5rem))] sm:justify-end">
+          <div className="pointer-events-auto w-full max-w-md sm:max-w-none">
+            <EntityDetailPanel item={selected} onClose={() => setSelected(null)} />
           </div>
         </div>
       )}

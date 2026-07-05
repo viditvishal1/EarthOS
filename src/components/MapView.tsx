@@ -175,7 +175,8 @@ function planeImage(color: string): ImageData {
 }
 
 export function MapView({
-  layers, lines = [], onSelect, onLocationPick, pin, center = [10, 25], zoom = 1.6, className,
+  layers, lines = [], onSelect, onLocationPick, pin, highlightId,
+  center = [10, 25], zoom = 1.6, className,
   defaultBasemap = "dark", defaultGlobe = false, maxZoom = 19,
   autoRotate = false, rotateSpeed = 0.05, onMove,
   mapControlsClass,
@@ -183,6 +184,8 @@ export function MapView({
   layers: MapLayer[];
   lines?: MapLine[];
   onSelect?: (id: string) => void;
+  /** Highlight the selected entity with a pulsing ring. */
+  highlightId?: string | null;
   onLocationPick?: (lat: number, lon: number) => void;
   pin?: { lat: number; lon: number; label?: string } | null;
   center?: [number, number];
@@ -210,6 +213,8 @@ export function MapView({
   onLocationPickRef.current = onLocationPick;
   const pinRef = useRef(pin);
   pinRef.current = pin;
+  const highlightIdRef = useRef(highlightId);
+  highlightIdRef.current = highlightId;
 
   const onMoveRef = useRef(onMove);
   onMoveRef.current = onMove;
@@ -271,10 +276,12 @@ export function MapView({
       map.on("click", `lyr-${layer.id}`, (e) => {
         const f = e.features?.[0];
         if (!f) return;
-        new maplibregl.Popup({ closeButton: false, offset: 8 })
-          .setLngLat(e.lngLat)
-          .setText(String(f.properties?.title ?? ""))
-          .addTo(map);
+        if (!onSelectRef.current) {
+          new maplibregl.Popup({ closeButton: false, offset: 8 })
+            .setLngLat(e.lngLat)
+            .setText(String(f.properties?.title ?? ""))
+            .addTo(map);
+        }
         if (f.properties?.id) onSelectRef.current?.(String(f.properties.id));
       });
       map.on("mouseenter", `lyr-${layer.id}`, () => { map.getCanvas().style.cursor = "pointer"; });
@@ -316,14 +323,54 @@ export function MapView({
         ? linesRef.current.some((l) => `line-${l.id}` === known)
         : known === "pin"
           ? Boolean(pinRef.current)
-          : layersRef.current.some((l) => l.id === known);
+          : known === "highlight"
+            ? Boolean(highlightIdRef.current)
+            : layersRef.current.some((l) => l.id === known);
       if (!stillWanted) {
-        const lid = known === "pin" ? "lyr-pin" : `lyr-${known}`;
-        const sid = known === "pin" ? "src-pin" : `src-${known}`;
+        const lid = known === "pin" ? "lyr-pin" : known === "highlight" ? "lyr-highlight" : `lyr-${known}`;
+        const sid = known === "pin" ? "src-pin" : known === "highlight" ? "src-highlight" : `src-${known}`;
         if (map.getLayer(lid)) map.removeLayer(lid);
         if (map.getSource(sid)) map.removeSource(sid);
         knownLayers.current.delete(known);
       }
+    }
+
+    // Selected entity highlight ring
+    const highlightItem = highlightIdRef.current
+      ? layersRef.current.flatMap((l) => l.items).find((i) => i.id === highlightIdRef.current)
+      : undefined;
+    if (highlightItem && typeof highlightItem.lat === "number" && typeof highlightItem.lon === "number") {
+      const geo: GeoJSON.FeatureCollection = {
+        type: "FeatureCollection",
+        features: [{
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [highlightItem.lon, highlightItem.lat] },
+          properties: { id: highlightItem.id },
+        }],
+      };
+      const existing = map.getSource("src-highlight") as maplibregl.GeoJSONSource | undefined;
+      if (existing) existing.setData(geo);
+      else {
+        map.addSource("src-highlight", { type: "geojson", data: geo });
+        map.addLayer({
+          id: "lyr-highlight",
+          type: "circle",
+          source: "src-highlight",
+          paint: {
+            "circle-radius": 14,
+            "circle-color": "#facc15",
+            "circle-opacity": 0.25,
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "#facc15",
+            "circle-stroke-opacity": 0.9,
+          },
+        });
+        knownLayers.current.add("highlight");
+      }
+    } else if (map.getLayer("lyr-highlight")) {
+      map.removeLayer("lyr-highlight");
+      if (map.getSource("src-highlight")) map.removeSource("src-highlight");
+      knownLayers.current.delete("highlight");
     }
 
     // User-placed pin
@@ -428,7 +475,7 @@ export function MapView({
     if (!map) return;
     if (map.isStyleLoaded()) applyOverlays(map);
     else map.once("load", () => applyOverlays(map));
-  }, [layers, lines, pin, applyOverlays]);
+  }, [layers, lines, pin, highlightId, applyOverlays]);
 
   // Fly to a new center/zoom when the parent changes region.
   useEffect(() => {

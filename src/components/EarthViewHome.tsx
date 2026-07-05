@@ -12,10 +12,12 @@ import {
 import type { Item } from "@/lib/types";
 import { MapView, type MapLayer } from "@/components/MapView";
 import { Badge } from "@/components/Badge";
+import { EntityDetailPanel } from "@/components/EntityDetailPanel";
 import { LiveNumber } from "@/components/LiveNumber";
 import { Skeleton } from "@/components/Skeleton";
 import { timeAgo } from "@/components/ModuleView";
 import { useGlobeLiveData } from "@/lib/hooks/useGlobeLiveData";
+import { useEntityTrack } from "@/lib/hooks/useEntityTrack";
 
 const LAYER_META = {
   events: { label: "Events", color: "#38bdf8" },
@@ -77,6 +79,7 @@ export function EarthViewHome() {
   });
   const [isolate, setIsolate] = useState<LayerKey | null>(null);
   const [autoRotate, setAutoRotate] = useState(true);
+  const [selected, setSelected] = useState<Item | null>(null);
 
   useEffect(() => {
     fetch("/api/bootstrap")
@@ -183,6 +186,21 @@ export function EarthViewHome() {
     return out;
   }, [activeToggles, live]);
 
+  const allMapItems = useMemo(
+    () => [
+      ...live.events.slice(0, 300),
+      ...live.quakes.slice(0, 150),
+      ...live.iss,
+      ...live.flights.slice(0, 2000),
+      ...live.ships.slice(0, 500),
+      ...live.webcams,
+      ...live.cctv,
+    ],
+    [live],
+  );
+
+  const trackLines = useEntityTrack(selected);
+
   const activity = useMemo(
     () => [...items, ...live.flights.slice(0, 8), ...live.ships.slice(0, 5)]
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
@@ -235,6 +253,9 @@ export function EarthViewHome() {
       <section className="relative h-[min(62vh,680px)] w-full overflow-hidden border-y border-line bg-black">
         <MapView
           layers={mapLayers}
+          lines={trackLines}
+          highlightId={selected?.id}
+          onSelect={(id) => setSelected(allMapItems.find((i) => i.id === id) ?? null)}
           defaultBasemap="dark"
           defaultGlobe
           autoRotate={autoRotate}
@@ -285,6 +306,14 @@ export function EarthViewHome() {
             Auto rotate
           </label>
         </div>
+
+        {selected && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 z-20 flex justify-center px-3 sm:inset-x-auto sm:bottom-auto sm:right-52 sm:top-24 sm:w-[min(380px,calc(100%-1.5rem))] sm:justify-end">
+            <div className="pointer-events-auto w-full max-w-md sm:max-w-none">
+              <EntityDetailPanel item={selected} onClose={() => setSelected(null)} />
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Row below map — activity | signals | alerts */}
