@@ -2,7 +2,7 @@ import { readModuleLiveCached } from "@/lib/live/module-cache";
 import { runConnector } from "@/lib/connectors";
 import type { Item } from "@/lib/types";
 import { listMarketInstruments } from "@/lib/markets/instruments";
-import { fetchStooqQuote } from "@/lib/markets/stooq";
+import { fetchEquityQuote } from "@/lib/markets/equity";
 
 export interface MarketQuote {
   id: string;
@@ -32,21 +32,20 @@ export async function fetchMarketQuotes(limit = 20): Promise<{
 
   for (const inst of instruments) {
     if (inst.instrumentType === "crypto") continue;
-    const q = await fetchStooqQuote(inst.symbol);
+    const q = await fetchEquityQuote(inst.symbol);
     if (!q) continue;
-    const prev = q.open;
-    const pct = prev ? ((q.close - prev) / prev) * 100 : 0;
     quotes.push({
       id: inst.id,
       symbol: inst.symbol,
       name: inst.name,
       assetClass: inst.instrumentType,
-      price: q.close,
-      changePct: Math.round(pct * 100) / 100,
-      currency: "USD",
-      provider: "Stooq EOD",
-      dataDelay: "End-of-day · delayed · not investment advice",
-      observedAt: q.date,
+      price: q.price,
+      changePct: q.changePct,
+      currency: q.currency,
+      provider: q.provider,
+      dataDelay: q.dataDelay,
+      observedAt: q.observedAt,
+      url: `https://finance.yahoo.com/quote/${encodeURIComponent(inst.symbol)}`,
     });
   }
 
@@ -96,7 +95,7 @@ export async function fetchMarketQuotes(limit = 20): Promise<{
   return {
     quotes,
     macro: macro.slice(0, 12),
-    attribution: "Stooq EOD · CoinGecko · World Bank · FRED · EIA",
+    attribution: "Yahoo Finance · Stooq EOD · CoinGecko · World Bank · FRED · EIA",
     disclaimer: "Delayed data for context only — not exchange-grade real-time or investment advice",
   };
 }

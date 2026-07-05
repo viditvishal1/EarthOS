@@ -19,7 +19,7 @@ export async function listMarketInstruments(): Promise<MarketInstrument[]> {
       symbol: r.symbol,
       name: r.name,
       instrumentType: r.instrument_type,
-      provider: r.provider === "yahoo" ? "stooq" : r.provider,
+      provider: r.provider === "stooq" ? "yahoo" : r.provider,
       exchange: r.exchange ?? undefined,
       enabled: r.enabled,
     }));

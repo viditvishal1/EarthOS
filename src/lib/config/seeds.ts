@@ -1,5 +1,7 @@
 // Seed configuration derived from existing hardcoded connector values.
 // Applied via /api/admin/seed or SQL — not loaded at runtime unless DB empty.
+// Full global universe (all NSE/NYSE tickers) requires a paid market-data provider quota;
+// seeds below cover major indices + liquid US/IN/UK/JP names via Yahoo Finance (free, delayed).
 
 import type { DataSourceConfig, GeoLocationConfig, MarketInstrumentConfig } from "@/lib/platform/types";
 
@@ -36,12 +38,27 @@ export const SEED_MARKET_INSTRUMENTS: MarketInstrumentConfig[] = [
   { id: "idx_ixic", symbol: "^IXIC", name: "NASDAQ Composite", instrument_type: "index", provider: "stooq", enabled: true },
   { id: "idx_ftse", symbol: "^FTSE", name: "FTSE 100", instrument_type: "index", provider: "stooq", enabled: true },
   { id: "idx_n225", symbol: "^N225", name: "Nikkei 225", instrument_type: "index", provider: "stooq", enabled: true },
-  { id: "eq_aapl", symbol: "AAPL", name: "Apple Inc.", instrument_type: "equity", provider: "stooq", enabled: true },
-  { id: "eq_msft", symbol: "MSFT", name: "Microsoft", instrument_type: "equity", provider: "stooq", enabled: true },
-  { id: "eq_nvda", symbol: "NVDA", name: "NVIDIA", instrument_type: "equity", provider: "stooq", enabled: true },
-  { id: "eq_googl", symbol: "GOOGL", name: "Alphabet", instrument_type: "equity", provider: "stooq", enabled: true },
-  { id: "eq_amzn", symbol: "AMZN", name: "Amazon", instrument_type: "equity", provider: "stooq", enabled: true },
-  { id: "eq_tsla", symbol: "TSLA", name: "Tesla", instrument_type: "equity", provider: "stooq", enabled: true },
+  { id: "eq_aapl", symbol: "AAPL", name: "Apple Inc.", instrument_type: "equity", exchange: "NASDAQ", provider: "yahoo", enabled: true },
+  { id: "eq_msft", symbol: "MSFT", name: "Microsoft", instrument_type: "equity", exchange: "NASDAQ", provider: "yahoo", enabled: true },
+  { id: "eq_nvda", symbol: "NVDA", name: "NVIDIA", instrument_type: "equity", exchange: "NASDAQ", provider: "yahoo", enabled: true },
+  { id: "eq_googl", symbol: "GOOGL", name: "Alphabet", instrument_type: "equity", exchange: "NASDAQ", provider: "yahoo", enabled: true },
+  { id: "eq_amzn", symbol: "AMZN", name: "Amazon", instrument_type: "equity", exchange: "NASDAQ", provider: "yahoo", enabled: true },
+  { id: "eq_tsla", symbol: "TSLA", name: "Tesla", instrument_type: "equity", exchange: "NASDAQ", provider: "yahoo", enabled: true },
+  { id: "eq_meta", symbol: "META", name: "Meta Platforms", instrument_type: "equity", exchange: "NASDAQ", provider: "yahoo", enabled: true },
+  { id: "eq_jpm", symbol: "JPM", name: "JPMorgan Chase", instrument_type: "equity", exchange: "NYSE", provider: "yahoo", enabled: true },
+  { id: "eq_v", symbol: "V", name: "Visa", instrument_type: "equity", exchange: "NYSE", provider: "yahoo", enabled: true },
+  { id: "eq_jnj", symbol: "JNJ", name: "Johnson & Johnson", instrument_type: "equity", exchange: "NYSE", provider: "yahoo", enabled: true },
+  { id: "eq_wmt", symbol: "WMT", name: "Walmart", instrument_type: "equity", exchange: "NYSE", provider: "yahoo", enabled: true },
+  { id: "eq_nse_reliance", symbol: "RELIANCE.NS", name: "Reliance Industries", instrument_type: "equity", exchange: "NSE", provider: "yahoo", enabled: true },
+  { id: "eq_nse_tcs", symbol: "TCS.NS", name: "Tata Consultancy Services", instrument_type: "equity", exchange: "NSE", provider: "yahoo", enabled: true },
+  { id: "eq_nse_infy", symbol: "INFY.NS", name: "Infosys", instrument_type: "equity", exchange: "NSE", provider: "yahoo", enabled: true },
+  { id: "eq_nse_hdfcbank", symbol: "HDFCBANK.NS", name: "HDFC Bank", instrument_type: "equity", exchange: "NSE", provider: "yahoo", enabled: true },
+  { id: "eq_nse_icicibank", symbol: "ICICIBANK.NS", name: "ICICI Bank", instrument_type: "equity", exchange: "NSE", provider: "yahoo", enabled: true },
+  { id: "eq_nse_sbinn", symbol: "SBIN.NS", name: "State Bank of India", instrument_type: "equity", exchange: "NSE", provider: "yahoo", enabled: true },
+  { id: "eq_nse_bajfinance", symbol: "BAJFINANCE.NS", name: "Bajaj Finance", instrument_type: "equity", exchange: "NSE", provider: "yahoo", enabled: true },
+  { id: "eq_nse_bhartiartl", symbol: "BHARTIARTL.NS", name: "Bharti Airtel", instrument_type: "equity", exchange: "NSE", provider: "yahoo", enabled: true },
+  { id: "eq_lse_hsba", symbol: "HSBA.L", name: "HSBC Holdings", instrument_type: "equity", exchange: "LSE", provider: "yahoo", enabled: true },
+  { id: "eq_tse_7203", symbol: "7203.T", name: "Toyota Motor", instrument_type: "equity", exchange: "TSE", provider: "yahoo", enabled: true },
 ];
 
 export const SEED_NEWS_FEEDS = [

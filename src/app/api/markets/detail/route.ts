@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchWithTimeout } from "@/lib/connectors/framework";
+import { fetchEquityQuote } from "@/lib/markets/equity";
 
 export const dynamic = "force-dynamic";
 
@@ -46,22 +47,24 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const { fetchStooqQuote } = await import("@/lib/markets/stooq");
-    const q = await fetchStooqQuote(id);
-    if (!q) throw new Error("no Stooq EOD data");
-    const pct = q.open ? ((q.close - q.open) / q.open) * 100 : 0;
+    const q = await fetchEquityQuote(id);
+    if (!q) throw new Error("no equity quote data");
     return NextResponse.json({
       kind: "stock",
       id,
-      name: id,
+      name: q.name,
       symbol: id,
-      price: q.close,
-      change24h: pct,
-      currency: "USD",
-      exchange: "EOD",
-      provider: "Stooq",
-      dataDelay: "End-of-day delayed — not investment advice",
-      observedAt: q.date,
+      price: q.price,
+      change24h: q.changePct,
+      change7d: q.change7d,
+      currency: q.currency,
+      exchange: q.exchange,
+      high52: q.high52,
+      low52: q.low52,
+      volume: q.volume,
+      provider: q.provider,
+      dataDelay: q.dataDelay,
+      observedAt: q.observedAt,
       fetchedAt: new Date().toISOString(),
     });
   } catch (err) {

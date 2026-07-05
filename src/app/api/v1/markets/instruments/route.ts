@@ -9,8 +9,8 @@ export async function GET() {
   return noCacheJson({
     instruments,
     count: instruments.length,
-    defaultProvider: "stooq",
-    dataDelay: "EOD delayed — not exchange-grade real-time",
+    defaultProvider: "yahoo",
+    dataDelay: "Delayed — not exchange-grade real-time",
     fetchedAt: new Date().toISOString(),
   });
 }

@@ -3,7 +3,9 @@
 // the history helpers below; nothing links out to an exchange for basic reading.
 
 import { getMarketInstruments } from "@/lib/config/sources";
-import { fetchStooqHistory, fetchStooqQuote } from "@/lib/markets/stooq";
+import { fetchEquityQuote } from "@/lib/markets/equity";
+import { fetchYahooHistory } from "@/lib/markets/yahoo";
+import { fetchStooqHistory } from "@/lib/markets/stooq";
 import type { Item } from "@/lib/types";
 import { fetchWithTimeout, registerConnector } from "./framework";
 
@@ -67,13 +69,14 @@ registerConnector(
 
 const YF_HEADERS = { "User-Agent": "Mozilla/5.0 (Argus open-source dashboard)" };
 
-async function yahooSymbols(): Promise<{ s: string; name: string; assetClass: string }[]> {
+async function instrumentSymbols(): Promise<{ s: string; name: string; assetClass: string; exchange?: string }[]> {
   const instruments = await getMarketInstruments();
   if (instruments.length > 0) {
     return instruments.map((i) => ({
       s: i.symbol,
       name: i.name,
       assetClass: i.instrument_type,
+      exchange: i.exchange,
     }));
   }
   return [
@@ -83,6 +86,44 @@ async function yahooSymbols(): Promise<{ s: string; name: string; assetClass: st
     { s: "MSFT", name: "Microsoft", assetClass: "equity" },
     { s: "NVDA", name: "NVIDIA", assetClass: "equity" },
   ];
+}
+
+function equityItem(
+  meta: { s: string; name: string; assetClass: string; exchange?: string },
+  q: Awaited<ReturnType<typeof fetchEquityQuote>>,
+  connectorId: string,
+  sourceLabel: string,
+): Item | null {
+  if (!q) return null;
+  return {
+    id: `stock:${meta.s}`,
+    module: "markets",
+    connectorId,
+    title: `${meta.name} (${meta.s.replace("^", "")})`,
+    summary: `${q.price.toLocaleString()} ${q.currency} · ${q.changePct >= 0 ? "+" : ""}${q.changePct.toFixed(2)}% · ${q.exchange}`,
+    source: sourceLabel,
+    url: `https://finance.yahoo.com/quote/${encodeURIComponent(meta.s)}`,
+    timestamp: q.observedAt,
+    severity: Math.min(10, Math.abs(q.changePct)),
+    severityLabel: `${q.changePct >= 0 ? "+" : ""}${q.changePct.toFixed(2)}%`,
+    tags: meta.assetClass === "index" ? ["index"] : ["equity"],
+    entities: [{ name: meta.name, type: "instrument" }],
+    contentPolicy: "full_cache",
+    extra: {
+      price: q.price,
+      change24h: q.changePct,
+      change7d: q.change7d,
+      assetClass: meta.assetClass,
+      symbol: meta.s,
+      exchange: meta.exchange ?? q.exchange,
+      currency: q.currency,
+      dataDelay: q.dataDelay,
+      provider: q.provider,
+      sparkline: q.sparkline,
+      high52: q.high52,
+      low52: q.low52,
+    },
+  };
 }
 
 interface YfChart {
@@ -105,49 +146,26 @@ registerConnector(
   {
     id: "stooq_eod",
     module: "markets",
-    source: "Stooq EOD",
+    source: "Equity Markets",
     sourceUrl: "https://stooq.com",
     scheduleSeconds: 3600,
     contentPolicy: "full_cache",
     entityTypes: ["instrument"],
   },
   async () => {
-    const symbols = await yahooSymbols();
+    const symbols = await instrumentSymbols();
     const results = await Promise.allSettled(
       symbols.map(async (meta) => {
-        const q = await fetchStooqQuote(meta.s);
-        if (!q) throw new Error("no quote");
-        const pct = q.open ? ((q.close - q.open) / q.open) * 100 : 0;
-        const item: Item = {
-          id: `stock:${meta.s}`,
-          module: "markets",
-          connectorId: "stooq_eod",
-          title: `${meta.name} (${meta.s.replace("^", "")})`,
-          summary: `${q.close.toLocaleString()} USD · EOD ${q.date} · ${pct >= 0 ? "+" : ""}${pct.toFixed(2)}% vs open`,
-          source: "Stooq EOD",
-          url: `https://stooq.com/q/?s=${encodeURIComponent(q.stooqSymbol)}`,
-          timestamp: new Date().toISOString(),
-          severity: Math.min(10, Math.abs(pct)),
-          severityLabel: `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`,
-          tags: [meta.assetClass, "eod"],
-          entities: [{ name: meta.name, type: "instrument" }],
-          contentPolicy: "full_cache",
-          extra: {
-            price: q.close,
-            changeDay: pct,
-            assetClass: meta.assetClass,
-            symbol: meta.s,
-            dataDelay: "EOD delayed",
-            provider: "stooq",
-          },
-        };
+        const q = await fetchEquityQuote(meta.s);
+        const item = equityItem(meta, q, "stooq_eod", q?.provider ?? "Yahoo Finance");
+        if (!item) throw new Error("no quote");
         return item;
       }),
     );
     const items = results
       .filter((r): r is PromiseFulfilledResult<Item> => r.status === "fulfilled")
       .map((r) => r.value);
-    if (items.length === 0) throw new Error("all Stooq EOD quotes failed");
+    if (items.length === 0) throw new Error("all equity quotes failed");
     return items;
   },
 );
@@ -163,36 +181,12 @@ registerConnector(
     entityTypes: ["instrument"],
   },
   async () => {
-    const symbols = await yahooSymbols();
+    const symbols = await instrumentSymbols();
     const results = await Promise.allSettled(
       symbols.map(async (meta) => {
-        const res = await fetchWithTimeout(
-          `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(meta.s)}?range=5d&interval=1d`,
-          { timeoutMs: 10000, headers: YF_HEADERS },
-        );
-        if (!res.ok) throw new Error(`Yahoo HTTP ${res.status}`);
-        const data: YfChart = await res.json();
-        const r = data.chart.result?.[0];
-        if (!r) throw new Error("no chart data");
-        const price = r.meta.regularMarketPrice;
-        const prev = r.meta.chartPreviousClose;
-        const pct = prev ? ((price - prev) / prev) * 100 : 0;
-        const item: Item = {
-          id: `stock:${meta.s}`,
-          module: "markets",
-          connectorId: "yahoo_quotes",
-          title: `${meta.name} (${meta.s.replace("^", "")})`,
-          summary: `${price.toLocaleString()} ${r.meta.currency} · ${pct >= 0 ? "+" : ""}${pct.toFixed(2)}% vs prev close`,
-          source: "Yahoo Finance",
-          url: `https://finance.yahoo.com/quote/${encodeURIComponent(meta.s)}`,
-          timestamp: new Date(r.meta.regularMarketTime * 1000).toISOString(),
-          severity: Math.min(10, Math.abs(pct)),
-          severityLabel: `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`,
-          tags: [meta.assetClass],
-          entities: [{ name: meta.name, type: "instrument" }],
-          contentPolicy: "full_cache",
-          extra: { price, changeDay: pct, assetClass: meta.assetClass, symbol: meta.s },
-        };
+        const q = await fetchEquityQuote(meta.s);
+        const item = equityItem(meta, q, "yahoo_quotes", q?.provider ?? "Yahoo Finance");
+        if (!item) throw new Error("no quote");
         return item;
       }),
     );
@@ -206,11 +200,14 @@ registerConnector(
 
 export const MARKETS_CONNECTOR_IDS = ["coingecko_markets", "stooq_eod"];
 
-/** Daily close history — Stooq EOD first; Yahoo only when explicitly enabled. */
+/** Daily close history — Yahoo first; Stooq EOD fallback. */
 export async function fetchStockHistory(
   symbol: string,
   days = 365,
 ): Promise<{ date: string; close: number; volume?: number }[]> {
+  const yahoo = await fetchYahooHistory(symbol, days);
+  if (yahoo.length > 0) return yahoo;
+
   const stooq = await fetchStooqHistory(symbol, days);
   if (stooq.length > 0) return stooq;
 
