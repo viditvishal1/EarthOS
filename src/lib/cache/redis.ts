@@ -24,7 +24,10 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
       });
       const raw = await res.text();
       if (!raw || raw === "null") return null;
-      return JSON.parse(raw) as T;
+      // Upstash REST wraps the value: {"result":"<serialized>"} — unwrap first.
+      const wrapper = JSON.parse(raw) as { result?: string | null };
+      if (wrapper.result == null) return null;
+      return JSON.parse(wrapper.result) as T;
     } catch {
       /* fall through */
     }

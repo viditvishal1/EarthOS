@@ -28,7 +28,7 @@ export function dbUsesPublishableKey(): boolean {
 
 type SupabaseClient = {
   from: (table: string) => {
-    upsert: (row: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
+    upsert: (row: Record<string, unknown> | Record<string, unknown>[]) => Promise<{ error: { message: string } | null }>;
     select: (cols?: string) => {
       eq: (col: string, val: string) => {
         maybeSingle: () => Promise<{ data: Record<string, unknown> | null; error: { message: string } | null }>;
@@ -118,15 +118,17 @@ export async function getArticleCache(key: string): Promise<CachedArticle | null
 export async function persistIngestedItems(items: Item[], connectorId: string): Promise<void> {
   const c = await sb();
   if (!c || items.length === 0) return;
-  for (const it of items.slice(0, 100)) {
-    await c.from("ingested_items").upsert({
-      id: it.id,
-      connector_id: connectorId,
-      module: it.module,
-      title: it.title,
-      payload: it,
-      ingested_at: new Date().toISOString(),
-    });
+  const now = new Date().toISOString();
+  const rows = items.map((it) => ({
+    id: it.id,
+    connector_id: connectorId,
+    module: it.module,
+    title: it.title,
+    payload: it,
+    ingested_at: now,
+  }));
+  for (let i = 0; i < rows.length; i += 200) {
+    await c.from("ingested_items").upsert(rows.slice(i, i + 200));
   }
 }
 

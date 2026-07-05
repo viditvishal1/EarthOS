@@ -49,7 +49,7 @@ async function processJob(job: IngestionJob): Promise<void> {
     observedAt: new Date().toISOString(),
   });
 
-  for (const item of job.items.slice(0, 50)) {
+  for (const item of job.items) {
     await syncItemOntology(item).catch(() => {});
   }
 

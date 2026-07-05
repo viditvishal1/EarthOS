@@ -71,6 +71,14 @@ export interface GraphEntity {
   lastSeen: string;
 }
 
+/** A citable observation supporting an edge. */
+export interface EdgeEvidence {
+  itemId: string;
+  passage: string; // the text the relationship was observed in
+  source: string;
+  observedAt: string; // ISO
+}
+
 export interface GraphEdge {
   id: string;
   source: string; // entity id
@@ -80,6 +88,9 @@ export interface GraphEdge {
   weight: number;
   confidence?: number;
   resolutionMethod?: "inferred" | "confirmed" | "manual";
+  /** fact = stated in a source; inference = co-occurrence or model-derived. */
+  kind?: "fact" | "inference" | "prediction";
+  evidence?: EdgeEvidence[];
 }
 
 export type ConnectorHealthState =

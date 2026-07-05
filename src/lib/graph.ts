@@ -68,7 +68,10 @@ export function ingestItems(items: Item[]) {
       }
     }
     // Co-occurrence edges: entities appearing in the same item are related.
+    // Labeled kind:"inference" and carry the citable passage they came from —
+    // confidence grows with corroborating observations instead of a flat 0.35.
     const edgeType = MODULE_EDGE[item.module] ?? "mentions";
+    const passage = (item.summary ?? item.title).slice(0, 280);
     for (let i = 0; i < ids.length; i++) {
       for (let j = i + 1; j < ids.length; j++) {
         const [a, b] = [ids[i], ids[j]].sort();
@@ -76,7 +79,14 @@ export function ingestItems(items: Item[]) {
         const existing = store.edges.get(eid);
         if (existing) {
           existing.weight += 1;
-          if (!existing.itemIds.includes(item.id)) existing.itemIds.push(item.id);
+          if (!existing.itemIds.includes(item.id)) {
+            existing.itemIds.push(item.id);
+            existing.confidence = Math.min(0.9, 0.35 + 0.05 * (existing.itemIds.length - 1));
+            existing.evidence ??= [];
+            if (existing.evidence.length < 5) {
+              existing.evidence.push({ itemId: item.id, passage, source: item.source, observedAt: item.timestamp });
+            }
+          }
         } else {
           store.edges.set(eid, {
             id: eid,
@@ -87,6 +97,8 @@ export function ingestItems(items: Item[]) {
             weight: 1,
             confidence: 0.35,
             resolutionMethod: "inferred",
+            kind: "inference",
+            evidence: [{ itemId: item.id, passage, source: item.source, observedAt: item.timestamp }],
           });
         }
       }

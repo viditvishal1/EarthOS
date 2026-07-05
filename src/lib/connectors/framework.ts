@@ -9,6 +9,7 @@ import { recordConnectorRun } from "@/lib/db/platform";
 import { enqueueIngestion } from "@/lib/queue/ingestion";
 import { trackConnectorRequest } from "@/lib/usage/tracker";
 import { evaluateAlerts } from "@/lib/alerts/engine";
+import { cacheGet, cacheSet } from "@/lib/cache/redis";
 
 interface CacheEntry {
   at: number;
@@ -81,6 +82,11 @@ function setStatus(id: string, manifest: ConnectorManifest, partial: Partial<Con
   });
 }
 
+async function lastGoodFromRedis(id: string): Promise<Item[]> {
+  const items = await cacheGet<Item[]>(`connector:last-good:${id}`).catch(() => null);
+  return Array.isArray(items) ? items : [];
+}
+
 export async function runConnector(id: string): Promise<Item[]> {
   const c = connectors.get(id);
   if (!c) return [];
@@ -104,15 +110,16 @@ export async function runConnector(id: string): Promise<Item[]> {
 
   const failures = store.failures.get(id) ?? 0;
   if (failures >= 5) {
+    const lastGood = store.cache.get(id)?.items ?? (await lastGoodFromRedis(id));
     setStatus(id, manifest, {
       ok: false,
       health: "error",
       keyGated: false,
-      itemCount: store.cache.get(id)?.items.length ?? 0,
+      itemCount: lastGood.length,
       lastError: "Circuit open — too many consecutive failures",
       stale: true,
     });
-    return store.cache.get(id)?.items ?? [];
+    return lastGood;
   }
 
   const cached = store.cache.get(id);
@@ -143,6 +150,9 @@ export async function runConnector(id: string): Promise<Item[]> {
 
     store.cache.set(id, { at: Date.now(), items });
     store.failures.set(id, 0);
+    // Durable last-good copy (Redis when configured) so cold starts and
+    // provider outages serve data instead of empty lists.
+    void cacheSet(`connector:last-good:${id}`, items, 86400).catch(() => {});
 
     setStatus(id, manifest, {
       ok: true,
@@ -184,14 +194,15 @@ export async function runConnector(id: string): Promise<Item[]> {
       error: msg,
     });
 
-    const hasCache = Boolean(cached?.items.length);
+    const fallback = cached?.items.length ? cached.items : await lastGoodFromRedis(id);
+    const hasCache = fallback.length > 0;
     setStatus(id, manifest, {
       ok: hasCache,
       health: hasCache ? "degraded" : "error",
       keyGated: false,
       lastFetch: new Date().toISOString(),
       lastError: msg,
-      itemCount: cached?.items.length ?? 0,
+      itemCount: fallback.length,
       latencyMs: Date.now() - started,
       stale: hasCache,
     });
@@ -199,12 +210,12 @@ export async function runConnector(id: string): Promise<Item[]> {
     await recordConnectorRun({
       sourceId: id,
       status: "error",
-      itemCount: cached?.items.length ?? 0,
+      itemCount: fallback.length,
       latencyMs: Date.now() - started,
       errorMessage: msg,
     }).catch(() => {});
 
-    return cached?.items ?? [];
+    return fallback;
   }
 }
 

@@ -18,7 +18,7 @@ registerConnector(
   },
   async () => {
     const res = await fetchWithTimeout(
-      "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=true&price_change_percentage=24h,7d,30d",
+      "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=true&price_change_percentage=24h,7d,30d",
       { timeoutMs: 12000 },
     );
     if (!res.ok) throw new Error(`CoinGecko HTTP ${res.status} (free tier ~10 req/min)`);
