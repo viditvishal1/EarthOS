@@ -7,14 +7,18 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "start:e2e": "node scripts/start-e2e.mjs",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "verify:live-data": "node scripts/verify-live-data.mjs",
     "seed:cctv": "node scripts/seed-cctv.mjs",
     "preflight": "node scripts/preflight.mjs",
-    "build:ci": "npm run typecheck && npm test && npm run build"
+    "build:ci": "npm run typecheck && npm test && npm run build",
+    "release-gate": "node scripts/preflight.mjs && npm run typecheck && npm test && npm run build && npm run test:e2e"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1079.0",
@@ -33,6 +37,7 @@
     "satellite.js": "^5.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
