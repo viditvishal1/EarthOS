@@ -223,6 +223,11 @@ export function MapView({
   // A rotating flat map looks wrong — auto-rotate implies the sphere.
   const [globe, setGlobe] = useState(defaultGlobe || autoRotate);
   const [terrain, setTerrain] = useState(false);
+
+  // Parent toggles (e.g. GlobeDashboard GLOBE | MAP) drive projection after mount.
+  useEffect(() => {
+    setGlobe(defaultGlobe || autoRotate);
+  }, [defaultGlobe, autoRotate]);
   const globeRef = useRef(globe);
   globeRef.current = globe;
   const terrainRef = useRef(terrain);
@@ -233,7 +238,7 @@ export function MapView({
     map.setProjection({ type: globeRef.current ? "globe" : "mercator" });
 
     if (!map.getSource("dem")) map.addSource("dem", DEM_SOURCE);
-    map.setTerrain(terrainRef.current ? { source: "dem", exaggeration: 1.4 } : null);
+    map.setTerrain(terrainRef.current && globeRef.current ? { source: "dem", exaggeration: 1.4 } : null);
 
     for (const layer of layersRef.current) {
       const srcId = `src-${layer.id}`;
@@ -489,9 +494,9 @@ export function MapView({
     if (!map || !map.isStyleLoaded()) return;
     map.setProjection({ type: globe ? "globe" : "mercator" });
     if (!map.getSource("dem")) map.addSource("dem", DEM_SOURCE);
-    map.setTerrain(terrain ? { source: "dem", exaggeration: 1.4 } : null);
-    if (terrain && map.getPitch() === 0) map.easeTo({ pitch: 55, duration: 800 });
-    if (!terrain && map.getPitch() > 0) map.easeTo({ pitch: 0, duration: 600 });
+    map.setTerrain(terrain && globe ? { source: "dem", exaggeration: 1.4 } : null);
+    if (terrain && globe && map.getPitch() === 0) map.easeTo({ pitch: 55, duration: 800 });
+    if ((!terrain || !globe) && map.getPitch() > 0) map.easeTo({ pitch: 0, duration: 600 });
   }, [globe, terrain]);
 
   // Basemap switch: setStyle wipes sources/layers, so re-apply overlays after.
