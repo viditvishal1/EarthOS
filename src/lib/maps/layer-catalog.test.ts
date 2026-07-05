@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultLayerToggles, buildMapLayers, LAYER_CATALOG } from "./layer-catalog";
+import { defaultLayerToggles, buildMapLayers, LAYER_CATALOG, type LayerData } from "./layer-catalog";
 import type { Item } from "@/lib/types";
 
 const item = (id: string): Item => ({
@@ -26,7 +26,7 @@ describe("layer catalog", () => {
     toggles.quakes = true;
     const data = Object.fromEntries(
       Object.keys(LAYER_CATALOG).map((k) => [k, []]),
-    ) as import("./layer-catalog").LayerData;
+    ) as unknown as LayerData;
     data.quakes = [item("q1")];
     const layers = buildMapLayers(data, toggles, null);
     expect(layers.some((l) => l.id === "quakes")).toBe(true);
