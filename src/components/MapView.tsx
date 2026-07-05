@@ -23,6 +23,8 @@ export interface MapLine {
   id: string;
   color: string;
   coords: [number, number][]; // [lon, lat]
+  width?: number; // default 1.5
+  dashed?: boolean; // default true (orbit tracks); solid for roads
 }
 
 export type BasemapId = "dark" | "satellite" | "streets" | "topo";
@@ -286,7 +288,12 @@ export function MapView({
           id: `lyr-line-${line.id}`,
           type: "line",
           source: srcId,
-          paint: { "line-color": line.color, "line-width": 1.5, "line-opacity": 0.8, "line-dasharray": [2, 1.5] },
+          paint: {
+            "line-color": line.color,
+            "line-width": line.width ?? 1.5,
+            "line-opacity": 0.8,
+            ...(line.dashed === false ? {} : { "line-dasharray": [2, 1.5] }),
+          },
         });
         knownLayers.current.add(`line-${line.id}`);
       }

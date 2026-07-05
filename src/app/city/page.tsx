@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CloudSun, MapPin, Newspaper, Map, Wind, Car } from "lucide-react";
 import type { Item } from "@/lib/types";
-import { MapView } from "@/components/MapView";
+import { MapView, type MapLine } from "@/components/MapView";
 import { ItemCard } from "@/components/ModuleView";
 import { ReaderPane } from "@/components/ReaderPane";
 
@@ -19,10 +19,12 @@ const FALLBACK_PRESETS = [
 type Layer = "weather" | "news" | "streets" | "air" | "traffic";
 
 interface TrafficSegment {
+  id?: string;
   roadName?: string;
   currentSpeed: number;
   freeFlowSpeed: number;
   confidence: number;
+  coords?: [number, number][]; // [lon, lat]
 }
 
 interface Weather {
@@ -103,7 +105,24 @@ export default function CityPage() {
   }, [loc.lat, loc.lon, label]);
 
   const basemap = layer === "streets" ? "streets" as const : layer === "weather" ? "satellite" as const : "dark" as const;
-  const zoom = layer === "streets" ? 14 : mapZoom;
+  const zoom = layer === "streets" ? 14 : layer === "traffic" ? 13 : mapZoom;
+
+  // Congestion-colored road polylines for the traffic layer.
+  const trafficLines: MapLine[] = useMemo(() => {
+    if (layer !== "traffic" || !traffic?.enabled) return [];
+    return traffic.segments
+      .filter((s) => s.coords && s.coords.length > 1)
+      .map((s, i) => {
+        const ratio = s.freeFlowSpeed > 0 ? s.currentSpeed / s.freeFlowSpeed : 1;
+        return {
+          id: s.id ?? `traffic-${i}`,
+          color: ratio < 0.5 ? "#ef4444" : ratio < 0.75 ? "#f59e0b" : "#22c55e",
+          coords: s.coords!,
+          width: 4,
+          dashed: false,
+        };
+      });
+  }, [layer, traffic]);
 
   const gmapsKey = typeof window !== "undefined" ? process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY : undefined;
 
@@ -267,6 +286,7 @@ export default function CityPage() {
       <div className="grid gap-4 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
         <MapView
           layers={[]}
+          lines={trafficLines}
           pin={place ? { lat: loc.lat, lon: loc.lon, label: label } : null}
           center={[loc.lon, loc.lat]}
           zoom={zoom}

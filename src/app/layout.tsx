@@ -3,6 +3,7 @@ import "./globals.css";
 import { Nav } from "@/components/Nav";
 import { GlobalSearchBar } from "@/components/GlobalSearchBar";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { CommandPalette } from "@/components/CommandPalette";
 
 export const metadata: Metadata = {
   title: "Argus — Open Intelligence Operating System",
@@ -25,7 +26,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="flex min-w-0 flex-1 flex-col">
             <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-body/90 px-4 backdrop-blur">
               <GlobalSearchBar />
-              <div className="ml-auto">
+              <div className="ml-auto flex items-center gap-2">
+                <CommandPalette />
                 <ThemeToggle />
               </div>
             </header>
